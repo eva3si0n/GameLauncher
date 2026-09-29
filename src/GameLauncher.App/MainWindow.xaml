@@ -62,6 +62,9 @@
                     <KeyboardAccelerator Key="F" Invoked="OnSearchAccelerator" Modifiers="Control" />
                 </AutoSuggestBox.KeyboardAccelerators>
             </AutoSuggestBox>
+            <Button AutomationProperties.Name="Статистика" Command="{x:Bind ViewModel.OpenStatsCommand}" ToolTipService.ToolTip="Статистика">
+                <FontIcon FontSize="14" Glyph="&#xE9D2;" />
+            </Button>
             <Button AutomationProperties.Name="Настройки" Command="{x:Bind ViewModel.OpenSettingsCommand}" ToolTipService.ToolTip="Настройки">
                 <FontIcon FontSize="14" Glyph="&#xE713;" />
             </Button>
@@ -444,6 +447,124 @@
                     <Button Command="{x:Bind ViewModel.SelectedGame.RemoveCoverCommand, Mode=OneWay}" Content="Убрать обложку" />
                     <Button Command="{x:Bind ViewModel.SelectedGame.RenameCommand, Mode=OneWay}" Content="Переименовать" />
                     <Button Command="{x:Bind ViewModel.SelectedGame.DeleteCommand, Mode=OneWay}" Content="Удалить из библиотеки" />
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Статистика по всем играм -->
+        <ScrollViewer
+            Grid.RowSpan="2"
+            Visibility="{x:Bind ViewModel.IsStatsOpen, Mode=OneWay}">
+            <StackPanel MaxWidth="860" Padding="0,8,0,24" HorizontalAlignment="Stretch" Spacing="16">
+                <Grid>
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <Button AutomationProperties.Name="Назад" Command="{x:Bind ViewModel.CloseStatsCommand}" ToolTipService.ToolTip="Назад (Esc)">
+                            <Button.KeyboardAccelerators>
+                                <KeyboardAccelerator Key="Escape" />
+                            </Button.KeyboardAccelerators>
+                            <FontIcon FontSize="14" Glyph="&#xE72B;" />
+                        </Button>
+                        <TextBlock VerticalAlignment="Center" Style="{StaticResource TitleTextBlockStyle}" Text="Статистика" />
+                    </StackPanel>
+                    <ComboBox
+                        MinWidth="180"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Center"
+                        AutomationProperties.Name="Период"
+                        SelectedIndex="{x:Bind ViewModel.Stats.PeriodIndex, Mode=TwoWay}">
+                        <ComboBoxItem Content="За неделю" />
+                        <ComboBoxItem Content="За месяц" />
+                        <ComboBoxItem Content="За всё время" />
+                    </ComboBox>
+                </Grid>
+
+                <TextBlock
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Text="Сессий пока нет. История копится с версии 1.2 — поиграйте, и здесь появятся итоги и график."
+                    TextWrapping="Wrap"
+                    Visibility="{x:Bind ViewModel.Stats.HasNoHistory, Mode=OneWay}" />
+
+                <StackPanel Spacing="16" Visibility="{x:Bind ViewModel.Stats.HasHistory, Mode=OneWay}">
+                    <StackPanel Style="{StaticResource SettingsCardStyle}">
+                        <Grid ColumnSpacing="48" RowSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="Сыграно за период" />
+                            <TextBlock Grid.Column="1" Text="{x:Bind ViewModel.Stats.TotalText, Mode=OneWay}" />
+                            <TextBlock Grid.Row="1" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="Сессий" />
+                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{x:Bind ViewModel.Stats.SessionCountText, Mode=OneWay}" />
+                            <TextBlock Grid.Row="2" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="Разных игр" />
+                            <TextBlock Grid.Row="2" Grid.Column="1" Text="{x:Bind ViewModel.Stats.GameCountText, Mode=OneWay}" />
+                            <TextBlock Grid.Row="3" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="Всего в библиотеке" />
+                            <TextBlock Grid.Row="3" Grid.Column="1" Text="{x:Bind ViewModel.Stats.LibraryTotalText, Mode=OneWay}" ToolTipService.ToolTip="Сумма «Сыграно» по всем играм, включая время до появления истории" />
+                        </Grid>
+                    </StackPanel>
+
+                    <StackPanel Style="{StaticResource SettingsCardStyle}">
+                        <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="{x:Bind ViewModel.Stats.ChartTitle, Mode=OneWay}" />
+                        <ItemsControl Height="84" ItemsSource="{x:Bind ViewModel.Stats.Days, Mode=OneWay}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" Spacing="3" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:DayBar">
+                                    <Grid Width="16" Height="84" Background="Transparent" ToolTipService.ToolTip="{x:Bind ToolTip}">
+                                        <Border
+                                            Height="{x:Bind Height}"
+                                            VerticalAlignment="Bottom"
+                                            Background="{ThemeResource AccentFillColorDefaultBrush}"
+                                            CornerRadius="2"
+                                            Opacity="{x:Bind Opacity}" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Style="{StaticResource CaptionTextBlockStyle}"
+                            Text="{x:Bind ViewModel.Stats.ChartCaption, Mode=OneWay}" />
+                    </StackPanel>
+
+                    <StackPanel Style="{StaticResource SettingsCardStyle}">
+                        <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="Больше всего играли" />
+                        <ListView
+                            IsItemClickEnabled="True"
+                            ItemClick="OnTopGameClick"
+                            ItemsSource="{x:Bind ViewModel.Stats.TopGames, Mode=OneWay}"
+                            SelectionMode="None">
+                            <ListView.ItemTemplate>
+                                <DataTemplate x:DataType="vm:TopGameItem">
+                                    <Grid Padding="0,6" ColumnSpacing="16">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="248" />
+                                            <ColumnDefinition Width="100" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock VerticalAlignment="Center" Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" />
+                                        <Border
+                                            Grid.Column="1"
+                                            Width="{x:Bind BarWidth}"
+                                            Height="8"
+                                            HorizontalAlignment="Left"
+                                            VerticalAlignment="Center"
+                                            Background="{ThemeResource AccentFillColorDefaultBrush}"
+                                            CornerRadius="4" />
+                                        <TextBlock Grid.Column="2" VerticalAlignment="Center" HorizontalTextAlignment="Right" Text="{x:Bind TimeText}" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+                    </StackPanel>
                 </StackPanel>
             </StackPanel>
         </ScrollViewer>

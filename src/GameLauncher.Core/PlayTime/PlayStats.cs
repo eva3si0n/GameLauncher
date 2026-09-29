@@ -3,6 +3,9 @@ namespace GameLauncher.Core.PlayTime;
 /// <summary>Итоги по сессиям: периоды — от начала местного дня (N−1) дней назад до «сейчас».</summary>
 public sealed record PlaySummary(TimeSpan Last7Days, TimeSpan Last30Days, int SessionCount, TimeSpan Average, TimeSpan Longest);
 
+/// <summary>Итоги по всем играм за период: время, число сессий и разных игр, задевших период.</summary>
+public sealed record PeriodSummary(TimeSpan Total, int SessionCount, int GameCount);
+
 /// <summary>Время за один местный день.</summary>
 public sealed record DayTotal(DateOnly Day, TimeSpan Total);
 
@@ -41,6 +44,13 @@ public static class PlayStats
         }
 
         return result;
+    }
+
+    /// <summary>Итоги за период [from, to): сессия считается, если хоть часть её попала в период.</summary>
+    public static PeriodSummary SummarizePeriod(IEnumerable<PlaySession> sessions, DateTimeOffset from, DateTimeOffset to)
+    {
+        var inPeriod = sessions.Where(s => Overlap(s, from, to) > TimeSpan.Zero).ToList();
+        return new PeriodSummary(Total(inPeriod, from, to), inPeriod.Count, inPeriod.Select(s => s.GameId).Distinct().Count());
     }
 
     /// <summary>Время по играм за период, от большего к меньшему; игры без времени в периоде не попадают.</summary>

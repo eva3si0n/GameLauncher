@@ -33,6 +33,7 @@ public sealed class MainViewModel : ObservableObject
     private GameItemViewModel? _selectedGame;
     private GameStatsViewModel? _selectedStats;
     private bool _isSettingsOpen;
+    private bool _isStatsOpen;
     private string _searchText = "";
 
     public MainViewModel(
@@ -60,7 +61,14 @@ public sealed class MainViewModel : ObservableObject
         _corruptBackupPath = corruptBackupPath;
         Settings = settings;
         // Идёт игра — запись истории обновляется раз в минуту; открытая страница игры видит это сразу.
-        _history.Changed += (_, _) => RefreshSelectedStats();
+        _history.Changed += (_, _) =>
+        {
+            RefreshSelectedStats();
+            if (_isStatsOpen)
+            {
+                Stats.Refresh();
+            }
+        };
         _playTime.Changed += (_, _) => RefreshPlayTime();
 
         Games = new ObservableCollection<GameItemViewModel>(library.Games.Select(CreateItem));
@@ -71,7 +79,11 @@ public sealed class MainViewModel : ObservableObject
             OnPropertyChanged(nameof(IsEmpty));
         };
 
+        Stats = new StatsViewModel(history, () => Games);
+
         AddGameCommand = new AsyncRelayCommand(AddGameAsync);
+        OpenStatsCommand = new RelayCommand(() => IsStatsOpen = true);
+        CloseStatsCommand = new RelayCommand(() => IsStatsOpen = false);
         CloseDetailsCommand = new RelayCommand(CloseDetails);
         OpenSettingsCommand = new RelayCommand(() => IsSettingsOpen = true);
         CloseSettingsCommand = new RelayCommand(() => IsSettingsOpen = false);
@@ -85,11 +97,42 @@ public sealed class MainViewModel : ObservableObject
 
     public IAsyncRelayCommand AddGameCommand { get; }
 
-    // ---------- Навигация: библиотека / страница игры / настройки ----------
+    // ---------- Навигация: библиотека / страница игры / настройки / статистика ----------
 
-    public bool IsLibraryVisible => _selectedGame is null && !_isSettingsOpen;
+    public bool IsLibraryVisible => _selectedGame is null && !_isSettingsOpen && !_isStatsOpen;
 
-    public bool IsDetailsOpen => _selectedGame is not null && !_isSettingsOpen;
+    public bool IsDetailsOpen => _selectedGame is not null && !_isSettingsOpen && !_isStatsOpen;
+
+    /// <summary>Экран «Статистика» по всем играм.</summary>
+    public StatsViewModel Stats { get; }
+
+    public bool IsStatsOpen
+    {
+        get => _isStatsOpen;
+        set
+        {
+            if (SetProperty(ref _isStatsOpen, value))
+            {
+                if (value)
+                {
+                    Stats.Refresh(); // «сегодня» и время могли сдвинуться с прошлого открытия
+                }
+
+                NotifyNavigation();
+            }
+        }
+    }
+
+    public IRelayCommand OpenStatsCommand { get; }
+
+    public IRelayCommand CloseStatsCommand { get; }
+
+    /// <summary>Клик по игре в статистике — её страница (назад с неё — в библиотеку).</summary>
+    public async Task OpenFromStatsAsync(TopGameItem item)
+    {
+        IsStatsOpen = false;
+        await OpenDetailsAsync(item.Game);
+    }
 
     /// <summary>Подсказка «Библиотека пуста» — только на экране библиотеки.</summary>
     public bool IsEmptyLibraryVisible => IsEmpty && IsLibraryVisible;
