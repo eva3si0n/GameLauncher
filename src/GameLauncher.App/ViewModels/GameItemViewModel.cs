@@ -207,9 +207,19 @@ public sealed class GameItemViewModel : ObservableObject
         OnPropertyChanged(nameof(LastPlayedText));
     }
 
+    private bool _imagesRequested;
+
+    /// <summary>
+    /// Загрузить картинки, если ещё не загружались. Вызывается, когда карточка впервые появляется на экране:
+    /// с большой библиотекой не нужно держать в памяти обложки всех игр сразу.
+    /// </summary>
+    public Task EnsureImagesLoadedAsync(ArtworkCache cache) =>
+        _imagesRequested ? Task.CompletedTask : LoadImagesAsync(cache);
+
     /// <summary>(Пере)загрузить обложку из кэша; если её нет — иконку exe. Вызывать из UI-потока.</summary>
     public async Task LoadImagesAsync(ArtworkCache cache)
     {
+        _imagesRequested = true;
         RemoveCoverCommand.NotifyCanExecuteChanged();
         Cover = _game.GridFile is { } gridFile
             ? await ImageLoader.FromFileAsync(cache.GetPath(gridFile), decodeWidth: 352)

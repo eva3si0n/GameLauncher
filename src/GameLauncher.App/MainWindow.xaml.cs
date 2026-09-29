@@ -127,6 +127,15 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    /// <summary>Карточка попала в видимую область GridView — подгружаем её картинки.</summary>
+    private async void OnGameContainerChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
+    {
+        if (!args.InRecycleQueue && args.Item is GameItemViewModel item)
+        {
+            await ViewModel.EnsureImagesLoadedAsync(item);
+        }
+    }
+
     private async void OnGameClick(object sender, ItemClickEventArgs e)
     {
         if (e.ClickedItem is GameItemViewModel item)
