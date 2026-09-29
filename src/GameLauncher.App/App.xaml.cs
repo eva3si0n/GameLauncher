@@ -2,23 +2,26 @@ using GameLauncher.App.Services;
 using GameLauncher.App.ViewModels;
 using GameLauncher.Core;
 using GameLauncher.Core.Artwork;
+using GameLauncher.Core.Backup;
 using GameLauncher.Core.GameInfo;
 using GameLauncher.Core.Library;
 using GameLauncher.Core.PlayTime;
 using GameLauncher.Core.Settings;
 using GameLauncher.Core.Startup;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Microsoft.UI.Xaml;
 
 namespace GameLauncher.App;
 
-public partial class App : Application
+public partial class App : Application, IAppLifecycle
 {
     private static readonly HttpClient Http = CreateHttpClient();
 
     private MainWindow? _window;
     private TrayIcon? _tray;
     private PlayTimeMonitor? _playTime;
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer? _backupTimer;
     private Microsoft.UI.Dispatching.DispatcherQueue? _dispatcher;
 
     public App()
@@ -26,6 +29,8 @@ public partial class App : Application
         InitializeComponent();
         CrashLog.Install(this);
     }
+
+    bool IAppLifecycle.HasRunningGames => _playTime?.HasSessions == true;
 
     /// <summary>Показать окно поверх остальных (в том числе из трея) — при повторном запуске лаунчера. Можно вызывать из любого потока.</summary>
     public void BringToFront() => _dispatcher?.TryEnqueue(() => _window?.ShowAndActivate());
@@ -61,6 +66,8 @@ public partial class App : Application
 
         var artwork = new ArtworkCache(AppPaths.ArtworkDirectory, Http);
         var detailsStore = new GameDetailsStore(AppPaths.GameDetailsDirectory);
+        var backups = new BackupService(AppPaths.DataDirectory);
+        StartDailyBackups(backups);
         var autostart = new Autostart(new RegistryAutostartStore(), Environment.ProcessPath ?? Path.Combine(AppContext.BaseDirectory, "GameLauncher.exe"));
         try
         {
@@ -79,7 +86,9 @@ public partial class App : Application
                 new DpapiSecretStore(AppPaths.SteamGridDbKeyPath),
                 dialogs,
                 Http,
-                autostart);
+                autostart,
+                backups,
+                this);
             var steamGridDb = new SteamGridDbClient(Http, () => settings.ApiKey);
             var details = new DetailsService(library, detailsStore, new SteamStoreClient(Http, primaryRegion: () => settings.SteamRegion));
             return new MainViewModel(
@@ -137,6 +146,60 @@ public partial class App : Application
         // Выключение или перезагрузка: сохранить время идущих игр, пока процесс не убили.
         tray.SessionEnding += (_, _) => _playTime?.Stop();
         return tray;
+    }
+
+    /// <summary>
+    /// Ежедневная автокопия библиотеки и настроек: при запуске и раз в час — лаунчер может сутками жить в трее.
+    /// В фоне: файлы читаются так, что запись библиотеки не мешает.
+    /// </summary>
+    private void StartDailyBackups(BackupService backups)
+    {
+        void Run() => Task.Run(() =>
+        {
+            try
+            {
+                backups.EnsureDailyBackup();
+            }
+            catch (Exception ex) when (ex is BackupException or IOException or UnauthorizedAccessException)
+            {
+                // Не вышло сегодня — попробуем через час; основные данные это не затрагивает.
+            }
+        });
+
+        Run();
+        _backupTimer = _dispatcher!.CreateTimer();
+        _backupTimer.Interval = TimeSpan.FromHours(1);
+        _backupTimer.IsRepeating = true;
+        _backupTimer.Tick += (_, _) => Run();
+        _backupTimer.Start();
+    }
+
+    /// <summary>
+    /// После восстановления из копии: запустить новый экземпляр (он дождётся завершения этого) и выйти,
+    /// ничего не записав. Свой перезапуск, а не AppInstance.Restart, — чтобы порядок «старый вышел → новый
+    /// занял ключ экземпляра» был гарантирован.
+    /// </summary>
+    void IAppLifecycle.RestartWithoutSaving()
+    {
+        _window?.DisableSaving();
+        _backupTimer?.Stop();
+        try
+        {
+            var exe = Environment.ProcessPath ?? Path.Combine(AppContext.BaseDirectory, "GameLauncher.exe");
+            Process.Start(new ProcessStartInfo(exe, $"{StartupOptions.WaitForProcessPrefix}{Environment.ProcessId}") { UseShellExecute = false })?.Dispose();
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            CrashLog.Write(ex);
+            MessageBox(IntPtr.Zero, "Данные восстановлены. Запустите лаунчер заново.", "GameLauncher", 0x40); // MB_ICONINFORMATION
+        }
+
+        // Учёт времени пуст (восстановление запрещено, пока идёт игра) — Stop ничего не запишет.
+        _playTime?.Stop();
+        _tray?.Dispose();
+        _tray = null;
+        _window?.CloseForExit();
+        Exit();
     }
 
     /// <summary>«Выход» в меню трея: сохранить время и закрыть лаунчер.</summary>

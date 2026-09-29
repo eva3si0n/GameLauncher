@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using GameLauncher.Core.Startup;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.Windows.AppLifecycle;
@@ -19,6 +20,12 @@ public static class Program
     private static int Main()
     {
         WinRT.ComWrappersSupport.InitializeComWrappers();
+
+        // Перезапуск самого себя (после восстановления из копии): ждём, пока старый процесс освободит ключ экземпляра.
+        if (StartupOptions.Parse(Environment.GetCommandLineArgs().Skip(1)).WaitForProcessId is { } previous)
+        {
+            WaitForExit(previous);
+        }
 
         if (RedirectToRunningInstance())
         {
@@ -69,6 +76,19 @@ public static class Program
         }
 
         return true;
+    }
+
+    private static void WaitForExit(int processId)
+    {
+        try
+        {
+            using var process = Process.GetProcessById(processId);
+            process.WaitForExit(TimeSpan.FromSeconds(15));
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            // Процесс уже завершился (или недоступен) — ждать нечего.
+        }
     }
 
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]

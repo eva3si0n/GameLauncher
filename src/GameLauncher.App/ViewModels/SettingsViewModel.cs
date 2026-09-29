@@ -5,12 +5,13 @@ using CommunityToolkit.Mvvm.Input;
 using GameLauncher.App.Services;
 using GameLauncher.Core;
 using GameLauncher.Core.Artwork;
+using GameLauncher.Core.Backup;
 using GameLauncher.Core.Settings;
 using GameLauncher.Core.Startup;
 
 namespace GameLauncher.App.ViewModels;
 
-/// <summary>Страница настроек: тема, трей и автозапуск, ключ SteamGridDB, витрина Steam, папка данных; а также размер окна.</summary>
+/// <summary>Страница настроек: тема, трей и автозапуск, ключ SteamGridDB, витрина Steam, папка данных, резервные копии; а также размер окна.</summary>
 public sealed class SettingsViewModel : ObservableObject
 {
     private readonly SettingsStore _store;
@@ -19,8 +20,17 @@ public sealed class SettingsViewModel : ObservableObject
     private readonly IDialogService _dialogs;
     private readonly HttpClient _http;
     private readonly Autostart _autostart;
+    private readonly BackupService _backups;
+    private readonly IAppLifecycle _lifecycle;
 
-    public SettingsViewModel(SettingsStore store, ISecretStore keyStore, IDialogService dialogs, HttpClient http, Autostart autostart)
+    public SettingsViewModel(
+        SettingsStore store,
+        ISecretStore keyStore,
+        IDialogService dialogs,
+        HttpClient http,
+        Autostart autostart,
+        BackupService backups,
+        IAppLifecycle lifecycle)
     {
         _store = store;
         _settings = store.Load();
@@ -28,10 +38,15 @@ public sealed class SettingsViewModel : ObservableObject
         _dialogs = dialogs;
         _http = http;
         _autostart = autostart;
+        _backups = backups;
+        _lifecycle = lifecycle;
         ApiKey = keyStore.Load();
 
         EditApiKeyCommand = new AsyncRelayCommand(EditApiKeyAsync);
-        OpenDataFolderCommand = new RelayCommand(OpenDataFolder);
+        OpenDataFolderCommand = new RelayCommand(() => OpenFolder(AppPaths.DataDirectory));
+        CreateBackupCommand = new AsyncRelayCommand(CreateBackupAsync);
+        RestoreBackupCommand = new AsyncRelayCommand(RestoreBackupAsync);
+        OpenBackupsFolderCommand = new RelayCommand(() => OpenFolder(_backups.AutoBackupDirectory));
     }
 
     /// <summary>Тема изменилась — окно применяет её.</summary>
@@ -167,6 +182,12 @@ public sealed class SettingsViewModel : ObservableObject
 
     public IRelayCommand OpenDataFolderCommand { get; }
 
+    public IAsyncRelayCommand CreateBackupCommand { get; }
+
+    public IAsyncRelayCommand RestoreBackupCommand { get; }
+
+    public IRelayCommand OpenBackupsFolderCommand { get; }
+
     /// <summary>Размер и положение окна с прошлого запуска; null — первый запуск.</summary>
     public WindowPlacement? SavedWindowPlacement => _settings.Window;
 
@@ -230,12 +251,93 @@ public sealed class SettingsViewModel : ObservableObject
         }
     }
 
-    private static void OpenDataFolder()
+    private async Task CreateBackupAsync()
+    {
+        var path = await _dialogs.PickBackupSaveAsync(_backups.SuggestedFileName);
+        if (path is null)
+        {
+            return;
+        }
+
+        try
+        {
+            // Файлы читаются так, что запись библиотеки в это время не мешает, — можно в фоне.
+            var info = await Task.Run(() => _backups.Create(path));
+            await _dialogs.ShowMessageAsync(
+                "Копия сохранена",
+                $"{path}\n\nИгр: {info.GameCount}. Ключ SteamGridDB в копию не входит: после переустановки Windows его нужно ввести заново.");
+        }
+        catch (BackupException ex)
+        {
+            await _dialogs.ShowMessageAsync("Не удалось сохранить копию", ex.Message);
+        }
+    }
+
+    private async Task RestoreBackupAsync()
+    {
+        if (await RefuseWhileGameRunsAsync())
+        {
+            return;
+        }
+
+        var path = await _dialogs.PickBackupOpenAsync();
+        if (path is null)
+        {
+            return;
+        }
+
+        BackupInfo info;
+        try
+        {
+            info = await Task.Run(() => _backups.Read(path));
+        }
+        catch (BackupException ex)
+        {
+            await _dialogs.ShowMessageAsync("Эту копию нельзя восстановить", ex.Message);
+            return;
+        }
+
+        if (!await _dialogs.ConfirmRestoreAsync(info) || await RefuseWhileGameRunsAsync())
+        {
+            return;
+        }
+
+        try
+        {
+            // Синхронно в UI-потоке: все записи библиотеки идут отсюда же, и между восстановлением и перезапуском
+            // ни одна запись из памяти не успеет затереть восстановленные файлы.
+            _backups.Restore(path);
+        }
+        catch (BackupException ex)
+        {
+            await _dialogs.ShowMessageAsync(
+                "Не удалось восстановить данные",
+                $"{ex.Message}\n\nЕсли часть файлов успела замениться, прежнее состояние сохранено в папке автокопий (before-restore-…).");
+            return;
+        }
+
+        _lifecycle.RestartWithoutSaving();
+    }
+
+    private async Task<bool> RefuseWhileGameRunsAsync()
+    {
+        if (!_lifecycle.HasRunningGames)
+        {
+            return false;
+        }
+
+        await _dialogs.ShowMessageAsync(
+            "Сначала закройте игру",
+            "Пока идёт учёт времени игры, восстановление недоступно: время записалось бы в заменяемую библиотеку.");
+        return true;
+    }
+
+    private static void OpenFolder(string path)
     {
         try
         {
-            Directory.CreateDirectory(AppPaths.DataDirectory);
-            Process.Start("explorer.exe", $"\"{AppPaths.DataDirectory}\"")?.Dispose();
+            Directory.CreateDirectory(path);
+            Process.Start("explorer.exe", $"\"{path}\"")?.Dispose();
         }
         catch (Exception ex) when (ex is Win32Exception or IOException or UnauthorizedAccessException)
         {

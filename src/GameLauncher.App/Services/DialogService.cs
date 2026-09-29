@@ -1,4 +1,5 @@
 using GameLauncher.Core.Artwork;
+using GameLauncher.Core.Backup;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Imaging;
@@ -39,6 +40,48 @@ public sealed class DialogService(Window window) : IDialogService
         var dialog = CreateDialog($"Удалить «{gameName}» из библиотеки?");
         dialog.Content = "Файлы игры на диске не будут затронуты.";
         dialog.PrimaryButtonText = "Удалить";
+        dialog.CloseButtonText = "Отмена";
+        dialog.DefaultButton = ContentDialogButton.Close;
+
+        return await ShowQueuedAsync(dialog) == ContentDialogResult.Primary;
+    }
+
+    public async Task<string?> PickBackupSaveAsync(string suggestedFileName)
+    {
+        var picker = new FileSavePicker
+        {
+            SuggestedStartLocation = PickerLocationId.DocumentsLibrary,
+            SuggestedFileName = Path.GetFileNameWithoutExtension(suggestedFileName),
+        };
+        picker.FileTypeChoices.Add("Резервная копия GameLauncher", [".zip"]);
+        InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(window));
+
+        var file = await picker.PickSaveFileAsync();
+        return file?.Path;
+    }
+
+    public async Task<string?> PickBackupOpenAsync()
+    {
+        var picker = new FileOpenPicker { SuggestedStartLocation = PickerLocationId.DocumentsLibrary };
+        picker.FileTypeFilter.Add(".zip");
+        InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(window));
+
+        var file = await picker.PickSingleFileAsync();
+        return file?.Path;
+    }
+
+    public async Task<bool> ConfirmRestoreAsync(BackupInfo backup)
+    {
+        var dialog = CreateDialog("Восстановить данные из копии?");
+        var contents = backup.IncludesArtwork ? "библиотека, настройки, обложки и описания" : "библиотека и настройки (обложки и описания останутся текущими)";
+        dialog.Content = new TextBlock
+        {
+            Text = $"Копия от {backup.CreatedAt.ToLocalTime():d MMMM yyyy, HH:mm}, игр: {backup.GameCount}.\n"
+                + $"Будут заменены: {contents}.\n\n"
+                + "Текущие данные перед этим сохранятся в папку автокопий. После восстановления лаунчер перезапустится.",
+            TextWrapping = TextWrapping.Wrap,
+        };
+        dialog.PrimaryButtonText = "Восстановить";
         dialog.CloseButtonText = "Отмена";
         dialog.DefaultButton = ContentDialogButton.Close;
 
