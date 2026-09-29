@@ -388,6 +388,24 @@
                 </StackPanel>
 
                 <StackPanel Style="{StaticResource SettingsCardStyle}">
+                    <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="Трей и автозапуск" />
+                    <ToggleSwitch
+                        Header="Крестик сворачивает в трей"
+                        IsOn="{x:Bind ViewModel.Settings.CloseToTray, Mode=TwoWay}"
+                        OffContent="Нет — крестик закрывает лаунчер"
+                        OnContent="Да — время игр считается и с закрытым окном" />
+                    <ToggleSwitch
+                        Header="Запускать вместе с Windows (сразу в трей)"
+                        IsOn="{x:Bind ViewModel.Settings.StartWithWindows, Mode=TwoWay}"
+                        OffContent="Выключено"
+                        OnContent="Включено" />
+                    <TextBlock
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Text="Выйти из лаунчера: правый клик по значку в трее → «Выход». Windows 11 может прятать значок за стрелкой ^ в углу панели задач."
+                        TextWrapping="Wrap" />
+                </StackPanel>
+
+                <StackPanel Style="{StaticResource SettingsCardStyle}">
                     <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="Обложки: SteamGridDB" />
                     <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{x:Bind ViewModel.Settings.ApiKeyStatusText, Mode=OneWay}" TextWrapping="Wrap" />
                     <Button Command="{x:Bind ViewModel.Settings.EditApiKeyCommand}" Content="Изменить API-ключ…" />

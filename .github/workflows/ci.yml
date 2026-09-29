@@ -108,6 +108,52 @@ jobs:
             ForEach-Object { Write-Host "---- $($_.ProviderName) [$($_.Id)]"; Write-Host $_.Message }
           if ($exited) { exit 1 }
 
+      # Запуск в трей (так стартует автозапуск): окно не показывается, повторный запуск его выводит.
+      - name: Smoke launch (tray)
+        shell: pwsh
+        run: |
+          # Без проводника нет трея — тогда лаунчер обязан показать окно сразу (иначе до него не добраться).
+          $hasShell = [bool](Get-Process explorer -ErrorAction SilentlyContinue)
+          Write-Host "Explorer running: $hasShell"
+          $p = Start-Process -FilePath artifacts/GameLauncher/GameLauncher.exe -ArgumentList '--tray' -PassThru
+          if ($p.WaitForExit(15000)) {
+            Write-Error ("Запуск в трей: процесс завершился, код 0x{0:X8}" -f $p.ExitCode)
+            exit 1
+          }
+          $p.Refresh()
+          Write-Host "Tray start: MainWindowHandle=$($p.MainWindowHandle)"
+          if ($hasShell -and $p.MainWindowHandle -ne 0) {
+            Stop-Process -Id $p.Id -Force
+            Write-Error 'При запуске в трей показалось окно'
+            exit 1
+          }
+          if (-not $hasShell -and $p.MainWindowHandle -eq 0) {
+            Stop-Process -Id $p.Id -Force
+            Write-Error 'Трея нет, а окно не показалось'
+            exit 1
+          }
+
+          $second = Start-Process -FilePath artifacts/GameLauncher/GameLauncher.exe -PassThru
+          if (-not $second.WaitForExit(15000)) {
+            Stop-Process -Id $second.Id, $p.Id -Force
+            Write-Error 'Второй экземпляр не завершился за 15 с'
+            exit 1
+          }
+
+          # Окно из трея появляется не мгновенно — ждём до 10 с.
+          $deadline = (Get-Date).AddSeconds(10)
+          do {
+            Start-Sleep -Milliseconds 500
+            $p.Refresh()
+          } while ($p.MainWindowHandle -eq 0 -and -not $p.HasExited -and (Get-Date) -lt $deadline)
+          Write-Host "After second launch: MainWindowHandle=$($p.MainWindowHandle), title='$($p.MainWindowTitle)'"
+          $shown = $p.MainWindowHandle -ne 0
+          if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force }
+          if (-not $shown) {
+            Write-Error 'Повторный запуск не показал окно из трея'
+            exit 1
+          }
+
       # upload-artifact сам упаковывает папку в zip — без zip внутри zip.
       # Артефакт нужен только для проверки сборки PR — храним недолго.
       - uses: actions/upload-artifact@v7

@@ -47,6 +47,9 @@ public static class Program
         // Ждём перенаправление, прокачивая COM-сообщения: простое блокирующее ожидание STA-потока может зависнуть.
         var redirected = CreateEvent(IntPtr.Zero, bManualReset: true, bInitialState: false, lpName: null);
         var args = AppInstance.GetCurrent().GetActivatedEventArgs();
+        // Право вывести окно на передний план есть у процесса, который запустил пользователь, — у этого.
+        // Передаём его первому экземпляру: его окно может быть спрятано в трей, и тогда вывести его может только он сам.
+        AllowSetForegroundWindow(mainInstance.ProcessId);
         Task.Run(() =>
         {
             mainInstance.RedirectActivationToAsync(args).AsTask().Wait();
@@ -54,7 +57,7 @@ public static class Program
         });
         _ = CoWaitForMultipleObjects(0, 0xFFFFFFFF, 1, [redirected], out _);
 
-        // Право вывести окно на передний план есть у процесса, который запустил пользователь, — у этого.
+        // Окно уже видно (не в трее) — выводим его и отсюда: так надёжнее, чем только из первого экземпляра.
         try
         {
             using var running = Process.GetProcessById((int)mainInstance.ProcessId);
@@ -81,4 +84,8 @@ public static class Program
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool AllowSetForegroundWindow(uint processId);
 }

@@ -6,8 +6,8 @@ using GameLauncher.Core.GameInfo;
 using GameLauncher.Core.Library;
 using GameLauncher.Core.PlayTime;
 using GameLauncher.Core.Settings;
+using GameLauncher.Core.Startup;
 using System.Runtime.InteropServices;
-using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 
 namespace GameLauncher.App;
@@ -16,7 +16,9 @@ public partial class App : Application
 {
     private static readonly HttpClient Http = CreateHttpClient();
 
-    private Window? _window;
+    private MainWindow? _window;
+    private TrayIcon? _tray;
+    private PlayTimeMonitor? _playTime;
     private Microsoft.UI.Dispatching.DispatcherQueue? _dispatcher;
 
     public App()
@@ -25,25 +27,13 @@ public partial class App : Application
         CrashLog.Install(this);
     }
 
-    /// <summary>Показать окно поверх остальных — при повторном запуске лаунчера. Можно вызывать из любого потока.</summary>
-    public void BringToFront() => _dispatcher?.TryEnqueue(() =>
-    {
-        if (_window is null)
-        {
-            return;
-        }
-
-        if (_window.AppWindow.Presenter is OverlappedPresenter { State: OverlappedPresenterState.Minimized } presenter)
-        {
-            presenter.Restore();
-        }
-
-        _window.Activate();
-    });
+    /// <summary>Показать окно поверх остальных (в том числе из трея) — при повторном запуске лаунчера. Можно вызывать из любого потока.</summary>
+    public void BringToFront() => _dispatcher?.TryEnqueue(() => _window?.ShowAndActivate());
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
         _dispatcher = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
+        var options = StartupOptions.Parse(Environment.GetCommandLineArgs().Skip(1));
 
         var store = new JsonLibraryStore(AppPaths.LibraryFilePath);
         GameLibrary library;
@@ -64,22 +54,32 @@ public partial class App : Application
             return;
         }
 
-        var playTime = new PlayTimeMonitor(
+        var playTime = _playTime = new PlayTimeMonitor(
             new PlaySessionTracker(library),
             new WindowsRunningProcesses(),
             _dispatcher);
 
         var artwork = new ArtworkCache(AppPaths.ArtworkDirectory, Http);
         var detailsStore = new GameDetailsStore(AppPaths.GameDetailsDirectory);
+        var autostart = new Autostart(new RegistryAutostartStore(), Environment.ProcessPath ?? Path.Combine(AppContext.BaseDirectory, "GameLauncher.exe"));
+        try
+        {
+            autostart.RepairIfMoved();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            // Автозапуск останется со старым путём; переключатель в настройках его перезапишет.
+        }
 
-        _window = new MainWindow(window =>
+        var mainWindow = _window = new MainWindow(window =>
         {
             var dialogs = new DialogService(window);
             var settings = new SettingsViewModel(
                 new SettingsStore(AppPaths.SettingsFilePath),
                 new DpapiSecretStore(AppPaths.SteamGridDbKeyPath),
                 dialogs,
-                Http);
+                Http,
+                autostart);
             var steamGridDb = new SteamGridDbClient(Http, () => settings.ApiKey);
             var details = new DetailsService(library, detailsStore, new SteamStoreClient(Http, primaryRegion: () => settings.SteamRegion));
             return new MainViewModel(
@@ -94,9 +94,57 @@ public partial class App : Application
                 settings,
                 store.CorruptBackupPath);
         });
-        // Ограничение первой версии: время считается, только пока лаунчер открыт.
-        _window.Closed += (_, _) => playTime.Stop();
-        _window.Activate();
+
+        _tray = CreateTray();
+        mainWindow.CanHideToTray = () => _tray?.IsAdded == true;
+        mainWindow.HiddenToTray += (_, _) =>
+        {
+            if (mainWindow.ViewModel.Settings.TryMarkTrayHintShown())
+            {
+                _tray?.ShowNotification("GameLauncher работает в трее", "Время игр продолжает считаться. Выход — правый клик по значку → «Выход».");
+            }
+        };
+        mainWindow.Closed += (_, _) =>
+        {
+            playTime.Stop();
+            _tray?.Dispose();
+            _tray = null;
+        };
+
+        // Автозапуск стартует сразу в трей; без значка в трее окно всё-таки показываем, иначе до лаунчера не добраться.
+        if (!options.StartInTray || _tray?.IsAdded != true)
+        {
+            mainWindow.Activate();
+        }
+    }
+
+    private TrayIcon? CreateTray()
+    {
+        TrayIcon tray;
+        try
+        {
+            tray = new TrayIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "GameLauncher.ico"), "GameLauncher", _dispatcher!);
+        }
+        catch (InvalidOperationException ex)
+        {
+            // Без трея лаунчер работает как раньше: крестик закрывает его.
+            CrashLog.Write(ex);
+            return null;
+        }
+
+        tray.OpenRequested += (_, _) => _window?.ShowAndActivate();
+        tray.ExitRequested += (_, _) => ExitLauncher();
+        // Выключение или перезагрузка: сохранить время идущих игр, пока процесс не убили.
+        tray.SessionEnding += (_, _) => _playTime?.Stop();
+        return tray;
+    }
+
+    /// <summary>«Выход» в меню трея: сохранить время и закрыть лаунчер.</summary>
+    private void ExitLauncher()
+    {
+        _playTime?.Stop();
+        _window?.CloseForExit();
+        Exit();
     }
 
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
