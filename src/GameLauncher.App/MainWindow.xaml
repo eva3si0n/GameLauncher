@@ -12,7 +12,7 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <Grid Margin="0,0,0,16">
+        <Grid Margin="0,0,0,16" Visibility="{x:Bind ViewModel.IsLibraryVisible, Mode=OneWay}">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
@@ -42,9 +42,11 @@
         <GridView
             Grid.Row="1"
             Padding="0,0,0,24"
-            IsItemClickEnabled="False"
+            IsItemClickEnabled="True"
+            ItemClick="OnGameClick"
             ItemsSource="{x:Bind ViewModel.Games}"
-            SelectionMode="None">
+            SelectionMode="None"
+            Visibility="{x:Bind ViewModel.IsLibraryVisible, Mode=OneWay}">
             <GridView.ItemTemplate>
                 <DataTemplate x:DataType="vm:GameItemViewModel">
                     <Grid
@@ -132,7 +134,7 @@
             HorizontalAlignment="Center"
             VerticalAlignment="Center"
             Spacing="8"
-            Visibility="{x:Bind ViewModel.IsEmpty, Mode=OneWay}">
+            Visibility="{x:Bind ViewModel.IsEmptyLibraryVisible, Mode=OneWay}">
             <TextBlock
                 HorizontalAlignment="Center"
                 Style="{StaticResource SubtitleTextBlockStyle}"
@@ -142,5 +144,105 @@
                 Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                 Text="Нажмите «Добавить игру» и выберите .exe" />
         </StackPanel>
+
+        <!-- Страница игры: открывается кликом по карточке -->
+        <ScrollViewer
+            Grid.RowSpan="2"
+            Margin="-24,-16,-24,0"
+            Visibility="{x:Bind ViewModel.IsDetailsOpen, Mode=OneWay}">
+            <StackPanel Padding="0,0,0,24">
+                <Grid Height="300">
+                    <Image
+                        Source="{x:Bind ViewModel.SelectedGame.Hero, Mode=OneWay}"
+                        Stretch="UniformToFill"
+                        VerticalAlignment="Center"
+                        Visibility="{x:Bind ViewModel.SelectedGame.HasHero, Mode=OneWay, FallbackValue=Collapsed}" />
+                    <Grid Background="{ThemeResource LayerFillColorDefaultBrush}" Visibility="{x:Bind ViewModel.SelectedGame.HasNoHero, Mode=OneWay, FallbackValue=Collapsed}">
+                        <TextBlock
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Text="Баннера нет — он скачивается вместе с обложкой («Найти обложку…»)" />
+                    </Grid>
+                    <!-- Кнопка «Назад» поверх баннера; Esc работает, только пока страница открыта -->
+                    <Button
+                        Margin="16"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Top"
+                        Command="{x:Bind ViewModel.CloseDetailsCommand}"
+                        ToolTipService.ToolTip="Назад (Esc)">
+                        <Button.KeyboardAccelerators>
+                            <KeyboardAccelerator Key="Escape" />
+                        </Button.KeyboardAccelerators>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon FontSize="14" Glyph="&#xE72B;" />
+                            <TextBlock Text="Назад" />
+                        </StackPanel>
+                    </Button>
+                </Grid>
+
+                <Grid Padding="24,20,24,0" ColumnSpacing="24">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Spacing="4">
+                        <TextBlock
+                            Style="{StaticResource TitleLargeTextBlockStyle}"
+                            Text="{x:Bind ViewModel.SelectedGame.Name, Mode=OneWay}"
+                            TextWrapping="Wrap" />
+                        <TextBlock
+                            Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                            Text="{x:Bind ViewModel.SelectedGame.StatusText, Mode=OneWay}"
+                            Visibility="{x:Bind ViewModel.SelectedGame.HasStatus, Mode=OneWay, FallbackValue=Collapsed}" />
+                    </StackPanel>
+                    <Button
+                        Grid.Column="1"
+                        MinWidth="160"
+                        VerticalAlignment="Top"
+                        Command="{x:Bind ViewModel.SelectedGame.PlayCommand, Mode=OneWay}"
+                        Style="{StaticResource AccentButtonStyle}">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon FontSize="16" Glyph="&#xE768;" />
+                            <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="Играть" />
+                        </StackPanel>
+                    </Button>
+                </Grid>
+
+                <Grid Margin="24,24,24,0" ColumnSpacing="48" RowSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="Сыграно" />
+                    <TextBlock Grid.Column="1" Text="{x:Bind ViewModel.SelectedGame.PlayTimeText, Mode=OneWay}" />
+                    <TextBlock Grid.Row="1" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="Последний запуск" />
+                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{x:Bind ViewModel.SelectedGame.LastPlayedText, Mode=OneWay}" />
+                    <TextBlock Grid.Row="2" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="Добавлена" />
+                    <TextBlock Grid.Row="2" Grid.Column="1" Text="{x:Bind ViewModel.SelectedGame.AddedText, Mode=OneWay}" />
+                    <TextBlock Grid.Row="3" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="Файл" />
+                    <TextBlock
+                        Grid.Row="3"
+                        Grid.Column="1"
+                        IsTextSelectionEnabled="True"
+                        Text="{x:Bind ViewModel.SelectedGame.ExePath, Mode=OneWay}"
+                        TextWrapping="Wrap" />
+                </Grid>
+
+                <StackPanel Margin="24,24,24,0" Orientation="Horizontal" Spacing="8">
+                    <Button Command="{x:Bind ViewModel.SelectedGame.OpenFolderCommand, Mode=OneWay}" Content="Открыть папку" />
+                    <Button Command="{x:Bind ViewModel.SelectedGame.FindCoverCommand, Mode=OneWay}" Content="Найти обложку…" />
+                    <Button Command="{x:Bind ViewModel.SelectedGame.RemoveCoverCommand, Mode=OneWay}" Content="Убрать обложку" />
+                    <Button Command="{x:Bind ViewModel.SelectedGame.RenameCommand, Mode=OneWay}" Content="Переименовать" />
+                    <Button Command="{x:Bind ViewModel.SelectedGame.DeleteCommand, Mode=OneWay}" Content="Удалить из библиотеки" />
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
     </Grid>
 </Window>

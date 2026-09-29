@@ -23,6 +23,7 @@ public sealed class MainViewModel : ObservableObject
     private readonly HttpClient _http;
     private readonly SteamGridDbClient _steamGridDb;
     private string? _apiKey;
+    private GameItemViewModel? _selectedGame;
 
     public MainViewModel(
         GameLibrary library,
@@ -45,9 +46,47 @@ public sealed class MainViewModel : ObservableObject
         _playTime.Changed += (_, _) => RefreshPlayTime();
 
         Games = new ObservableCollection<GameItemViewModel>(library.Games.Select(CreateItem));
-        Games.CollectionChanged += (_, _) => OnPropertyChanged(nameof(IsEmpty));
+        Games.CollectionChanged += (_, _) =>
+        {
+            OnPropertyChanged(nameof(IsEmpty));
+            OnPropertyChanged(nameof(IsEmptyLibraryVisible));
+        };
         AddGameCommand = new AsyncRelayCommand(AddGameAsync);
         EditApiKeyCommand = new AsyncRelayCommand(EditApiKeyAsync);
+        CloseDetailsCommand = new RelayCommand(CloseDetails);
+    }
+
+    /// <summary>Игра, открытая на отдельной странице; null — показана библиотека.</summary>
+    public GameItemViewModel? SelectedGame
+    {
+        get => _selectedGame;
+        private set
+        {
+            if (SetProperty(ref _selectedGame, value))
+            {
+                OnPropertyChanged(nameof(IsDetailsOpen));
+                OnPropertyChanged(nameof(IsLibraryVisible));
+                OnPropertyChanged(nameof(IsEmptyLibraryVisible));
+            }
+        }
+    }
+
+    public bool IsDetailsOpen => _selectedGame is not null;
+
+    public bool IsLibraryVisible => _selectedGame is null;
+
+    public IRelayCommand CloseDetailsCommand { get; }
+
+    public async Task OpenDetailsAsync(GameItemViewModel item)
+    {
+        SelectedGame = item;
+        await item.LoadHeroAsync(_artwork);
+    }
+
+    private void CloseDetails()
+    {
+        SelectedGame?.UnloadHero();
+        SelectedGame = null;
     }
 
     public IAsyncRelayCommand EditApiKeyCommand { get; }
@@ -55,6 +94,9 @@ public sealed class MainViewModel : ObservableObject
     public ObservableCollection<GameItemViewModel> Games { get; }
 
     public bool IsEmpty => Games.Count == 0;
+
+    /// <summary>Подсказка «Библиотека пуста» — только на экране библиотеки.</summary>
+    public bool IsEmptyLibraryVisible => IsEmpty && _selectedGame is null;
 
     public IAsyncRelayCommand AddGameCommand { get; }
 
@@ -290,6 +332,11 @@ public sealed class MainViewModel : ObservableObject
         {
             await _dialogs.ShowMessageAsync("Не удалось удалить игру", ex.Message);
             return;
+        }
+
+        if (SelectedGame == item)
+        {
+            CloseDetails();
         }
 
         Games.Remove(item);

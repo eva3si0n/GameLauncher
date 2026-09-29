@@ -15,6 +15,7 @@ public sealed class GameItemViewModel : ObservableObject
     private PlaySessionState _state;
     private ImageSource? _cover;
     private ImageSource? _icon;
+    private ImageSource? _hero;
 
     public GameItemViewModel(
         Game game,
@@ -30,6 +31,7 @@ public sealed class GameItemViewModel : ObservableObject
         DeleteCommand = new AsyncRelayCommand(() => delete(this));
         FindCoverCommand = new AsyncRelayCommand(() => findCover(this));
         RemoveCoverCommand = new AsyncRelayCommand(() => removeCover(this), () => _game.GridFile is not null);
+        OpenFolderCommand = new RelayCommand(OpenFolder);
     }
 
     public Game Game => _game;
@@ -41,6 +43,28 @@ public sealed class GameItemViewModel : ObservableObject
     public string ExePath => _game.ExePath;
 
     public string PlayTimeText => PlayTimeFormat.Format(_game.TotalPlayTime);
+
+    public string LastPlayedText => PlayTimeFormat.FormatDate(_game.LastPlayedAt, TimeZoneInfo.Local);
+
+    public string AddedText => PlayTimeFormat.FormatDate(_game.AddedAt, TimeZoneInfo.Local, "—");
+
+    /// <summary>Широкий баннер для страницы игры. Загружается при открытии страницы.</summary>
+    public ImageSource? Hero
+    {
+        get => _hero;
+        private set
+        {
+            if (SetProperty(ref _hero, value))
+            {
+                OnPropertyChanged(nameof(HasHero));
+                OnPropertyChanged(nameof(HasNoHero));
+            }
+        }
+    }
+
+    public bool HasHero => _hero is not null;
+
+    public bool HasNoHero => _hero is null;
 
     public PlaySessionState State
     {
@@ -106,11 +130,14 @@ public sealed class GameItemViewModel : ObservableObject
 
     public IAsyncRelayCommand RemoveCoverCommand { get; }
 
+    public IRelayCommand OpenFolderCommand { get; }
+
     /// <summary>Сообщить UI, что данные игры изменились (например, после переименования).</summary>
     public void Refresh()
     {
         OnPropertyChanged(nameof(Name));
         OnPropertyChanged(nameof(PlayTimeText));
+        OnPropertyChanged(nameof(LastPlayedText));
     }
 
     /// <summary>(Пере)загрузить обложку из кэша; если её нет — иконку exe. Вызывать из UI-потока.</summary>
@@ -124,6 +151,36 @@ public sealed class GameItemViewModel : ObservableObject
         if (Cover is null && Icon is null)
         {
             Icon = await ImageLoader.ExeIconAsync(_game.ExePath);
+        }
+
+        // Баннер держим в памяти, только если он уже был загружен для страницы игры.
+        if (_hero is not null || _game.HeroFile is null)
+        {
+            await LoadHeroAsync(cache);
+        }
+    }
+
+    /// <summary>(Пере)загрузить баннер. Вызывать из UI-потока.</summary>
+    public async Task LoadHeroAsync(ArtworkCache cache)
+    {
+        Hero = _game.HeroFile is { } heroFile
+            ? await ImageLoader.FromFileAsync(cache.GetPath(heroFile), decodeWidth: 1920)
+            : null;
+    }
+
+    /// <summary>Выгрузить баннер из памяти, когда страница игры закрыта.</summary>
+    public void UnloadHero() => Hero = null;
+
+    private void OpenFolder()
+    {
+        try
+        {
+            // Открывает Проводник с выделенным exe.
+            System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{_game.ExePath}\"")?.Dispose();
+        }
+        catch (System.ComponentModel.Win32Exception)
+        {
+            // Проводник не запустился — ничего страшного.
         }
     }
 
