@@ -137,6 +137,22 @@ public sealed class GameLibraryTests : IDisposable
     }
 
     [Fact]
+    public void SetArtwork_Persists()
+    {
+        var library = new GameLibrary(NewStore());
+        var game = library.Add(_dir.CreateFile("game.exe"), out _);
+
+        library.SetArtwork(game.Id, "g.png", "h.jpg");
+
+        var reloaded = Assert.Single(new GameLibrary(NewStore()).Games);
+        Assert.Equal("g.png", reloaded.GridFile);
+        Assert.Equal("h.jpg", reloaded.HeroFile);
+
+        library.SetArtwork(game.Id, null, null);
+        Assert.Null(Assert.Single(new GameLibrary(NewStore()).Games).GridFile);
+    }
+
+    [Fact]
     public void AddPlayTime_Negative_Throws()
     {
         var library = new GameLibrary(NewStore());

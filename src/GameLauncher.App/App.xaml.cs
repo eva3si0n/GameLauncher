@@ -1,6 +1,7 @@
 using GameLauncher.App.Services;
 using GameLauncher.App.ViewModels;
 using GameLauncher.Core;
+using GameLauncher.Core.Artwork;
 using GameLauncher.Core.Library;
 using GameLauncher.Core.PlayTime;
 using Microsoft.UI.Xaml;
@@ -9,6 +10,8 @@ namespace GameLauncher.App;
 
 public partial class App : Application
 {
+    private static readonly HttpClient Http = CreateHttpClient();
+
     private Window? _window;
 
     public App()
@@ -28,9 +31,23 @@ public partial class App : Application
             Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread());
 
         _window = new MainWindow(window =>
-            new MainViewModel(library, new DialogService(window), playTime, store.CorruptBackupPath));
+            new MainViewModel(
+                library,
+                new DialogService(window),
+                playTime,
+                new ArtworkCache(AppPaths.ArtworkDirectory, Http),
+                new DpapiSecretStore(AppPaths.SteamGridDbKeyPath),
+                Http,
+                store.CorruptBackupPath));
         // Ограничение первой версии: время считается, только пока лаунчер открыт.
         _window.Closed += (_, _) => playTime.Stop();
         _window.Activate();
+    }
+
+    private static HttpClient CreateHttpClient()
+    {
+        var http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+        http.DefaultRequestHeaders.UserAgent.ParseAdd("GameLauncher/1.0");
+        return http;
     }
 }

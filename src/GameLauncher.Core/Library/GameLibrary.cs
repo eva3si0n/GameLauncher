@@ -94,6 +94,15 @@ public sealed class GameLibrary
         SaveOrRollback(() => (game.TotalPlayTime, game.LastPlayedAt) = (oldTotal, oldLast));
     }
 
+    /// <summary>Задаёт файлы обложки и баннера (null — убрать).</summary>
+    public void SetArtwork(Guid id, string? gridFile, string? heroFile)
+    {
+        var game = Find(id);
+        var (oldGrid, oldHero) = (game.GridFile, game.HeroFile);
+        (game.GridFile, game.HeroFile) = (gridFile, heroFile);
+        SaveOrRollback(() => (game.GridFile, game.HeroFile) = (oldGrid, oldHero));
+    }
+
     private void SaveOrRollback(Action rollback)
     {
         try

@@ -17,4 +17,10 @@ public sealed class Game
 
     /// <summary>Когда игру видели запущенной в последний раз.</summary>
     public DateTimeOffset? LastPlayedAt { get; set; }
+
+    /// <summary>Имя файла вертикальной обложки в кэше картинок; null — обложки нет.</summary>
+    public string? GridFile { get; set; }
+
+    /// <summary>Имя файла баннера в кэше картинок; null — баннера нет.</summary>
+    public string? HeroFile { get; set; }
 }
