@@ -14,6 +14,9 @@ public static class AppPaths
         return Path.Combine(localAppDataRoot, AppFolderName);
     }
 
+    /// <summary>Файл библиотеки игр текущего пользователя.</summary>
+    public static string LibraryFilePath => Path.Combine(DataDirectory, "library.json");
+
     /// <summary>Каталог данных текущего пользователя.</summary>
     public static string DataDirectory =>
         GetDataDirectory(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));

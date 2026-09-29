@@ -6,6 +6,7 @@
 - WinUI 3 + C#, .NET 10 (LTS). Preview/RC-версии .NET не использовать.
 - Windows App SDK 2.x (метапакет `Microsoft.WindowsAppSDK`), MVVM — CommunityToolkit.Mvvm.
 - Распространение: unpackaged (`WindowsPackageType=None`), self-contained .NET и Windows App SDK, x64. Без MSIX и подписи.
+- Локализации: только русский и английский (`SatelliteResourceLanguages=en;ru`, .mui WinUI фильтруются в `GameLauncher.App.csproj`).
 - Целевая ОС — только Windows 11.
 - Версии NuGet-пакетов — только в `Directory.Packages.props` (central package management).
 - Тесты — xUnit v3 на Microsoft.Testing.Platform (`dotnet test --project ...`, раннер задан в `global.json`).

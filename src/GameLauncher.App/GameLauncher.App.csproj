@@ -21,6 +21,9 @@
     <EnableMsixTooling>true</EnableMsixTooling>
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
     <SelfContained>true</SelfContained>
+
+    <!-- Локализации: только русский и английский (английский — запасной язык WinUI) -->
+    <SatelliteResourceLanguages>en;ru</SatelliteResourceLanguages>
   </PropertyGroup>
 
   <ItemGroup>
@@ -32,5 +35,20 @@
   <ItemGroup>
     <ProjectReference Include="..\GameLauncher.Core\GameLauncher.Core.csproj" />
   </ItemGroup>
+
+  <!--
+    Windows App SDK кладёт переводы встроенных строк WinUI (.mui) для 87 языков — по папке на язык.
+    Оставляем только ru-RU и en-us. На то, какие символы приложение показывает и принимает, это не влияет:
+    кириллица и латиница работают при любом наборе .mui.
+  -->
+  <Target Name="KeepOnlyRuEnWinUIResources" AfterTargets="AddMicrosoftWindowsAppSDKPayloadFilesFromComponents">
+    <ItemGroup>
+      <_UnneededWinUIMui Include="@(None)"
+          Condition="'%(None.Extension)' == '.mui'
+                     and !$([System.String]::Copy('%(None.Link)').ToLowerInvariant().StartsWith('ru-ru'))
+                     and !$([System.String]::Copy('%(None.Link)').ToLowerInvariant().StartsWith('en-us'))" />
+      <None Remove="@(_UnneededWinUIMui)" />
+    </ItemGroup>
+  </Target>
 
 </Project>
