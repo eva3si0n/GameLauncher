@@ -46,6 +46,8 @@ jobs:
         shell: pwsh
         run: |
           Get-ChildItem artifacts/GameLauncher -File | Where-Object { $_.Extension -in '.exe','.pri','.xbf' -or $_.Name -like 'Microsoft.WindowsAppRuntime*' -or $_.Name -like 'Microsoft.ui.xaml*' } | Format-Table Name, Length -AutoSize | Out-String | Write-Host
+          $langDirs = Get-ChildItem artifacts/GameLauncher -Directory | Where-Object { $_.Name -match '^[a-z]{2,3}(-[A-Za-z]+)+$' } | ForEach-Object Name
+          Write-Host "Language folders: $($langDirs -join ', ')"
           $start = Get-Date
           $p = Start-Process -FilePath artifacts/GameLauncher/GameLauncher.exe -PassThru
           $exited = $p.WaitForExit(20000)
