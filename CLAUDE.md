@@ -24,4 +24,4 @@
 
 ## Секреты
 - Секреты (API-ключ SteamGridDB и любые другие) никогда не коммитить — ни в код, ни в конфиги, ни в тесты.
-- Ключ SteamGridDB вводит пользователь в настройках; хранится зашифрованным через DPAPI (CurrentUser).
+- Ключ SteamGridDB вводит пользователь (кнопка «SteamGridDB» в окне); хранится зашифрованным через DPAPI (CurrentUser) в `%LocalAppData%\GameLauncher\steamgriddb.key`.

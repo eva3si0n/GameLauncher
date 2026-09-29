@@ -17,6 +17,12 @@ public static class AppPaths
     /// <summary>Файл библиотеки игр текущего пользователя.</summary>
     public static string LibraryFilePath => Path.Combine(DataDirectory, "library.json");
 
+    /// <summary>Кэш обложек и баннеров.</summary>
+    public static string ArtworkDirectory => Path.Combine(DataDirectory, "artwork");
+
+    /// <summary>Зашифрованный (DPAPI) API-ключ SteamGridDB.</summary>
+    public static string SteamGridDbKeyPath => Path.Combine(DataDirectory, "steamgriddb.key");
+
     /// <summary>Каталог данных текущего пользователя.</summary>
     public static string DataDirectory =>
         GetDataDirectory(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));

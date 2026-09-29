@@ -21,8 +21,14 @@
                 VerticalAlignment="Center"
                 Style="{StaticResource TitleTextBlockStyle}"
                 Text="Библиотека" />
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+            <Button Command="{x:Bind ViewModel.EditApiKeyCommand}" ToolTipService.ToolTip="API-ключ SteamGridDB для обложек">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <FontIcon FontSize="14" Glyph="&#xE192;" />
+                    <TextBlock Text="SteamGridDB" />
+                </StackPanel>
+            </Button>
             <Button
-                Grid.Column="1"
                 Command="{x:Bind ViewModel.AddGameCommand}"
                 Style="{StaticResource AccentButtonStyle}">
                 <StackPanel Orientation="Horizontal" Spacing="8">
@@ -30,6 +36,7 @@
                     <TextBlock Text="Добавить игру" />
                 </StackPanel>
             </Button>
+            </StackPanel>
         </Grid>
 
         <GridView
@@ -42,21 +49,24 @@
                 <DataTemplate x:DataType="vm:GameItemViewModel">
                     <Grid
                         Width="176"
-                        Height="232"
-                        Padding="12"
                         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                         BorderThickness="1"
                         CornerRadius="8"
                         ToolTipService.ToolTip="{x:Bind ExePath}">
                         <Grid.RowDefinitions>
-                            <RowDefinition Height="*" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="264" />
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
                         <Grid.ContextFlyout>
                             <MenuFlyout>
+                                <MenuFlyoutItem Command="{x:Bind FindCoverCommand}" Text="Найти обложку…">
+                                    <MenuFlyoutItem.Icon>
+                                        <SymbolIcon Symbol="Pictures" />
+                                    </MenuFlyoutItem.Icon>
+                                </MenuFlyoutItem>
+                                <MenuFlyoutItem Command="{x:Bind RemoveCoverCommand}" Text="Убрать обложку" />
+                                <MenuFlyoutSeparator />
                                 <MenuFlyoutItem Command="{x:Bind RenameCommand}" Text="Переименовать">
                                     <MenuFlyoutItem.Icon>
                                         <SymbolIcon Symbol="Rename" />
@@ -70,21 +80,33 @@
                             </MenuFlyout>
                         </Grid.ContextFlyout>
 
-                        <FontIcon
-                            HorizontalAlignment="Center"
-                            VerticalAlignment="Center"
-                            FontSize="56"
-                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                            Glyph="&#xE7FC;" />
-                        <TextBlock
-                            Grid.Row="1"
-                            MaxLines="2"
-                            Style="{StaticResource BodyStrongTextBlockStyle}"
-                            Text="{x:Bind Name, Mode=OneWay}"
-                            TextTrimming="CharacterEllipsis"
-                            TextWrapping="Wrap" />
-                        <StackPanel Grid.Row="2" Margin="0,2,0,0">
+                        <!-- Обложка 2:3; без неё — иконка exe; без иконки — значок-заглушка -->
+                        <Grid Background="{ThemeResource LayerFillColorDefaultBrush}" CornerRadius="8,8,0,0">
+                            <Image
+                                Source="{x:Bind Cover, Mode=OneWay}"
+                                Stretch="UniformToFill"
+                                Visibility="{x:Bind HasCover, Mode=OneWay}" />
+                            <Image
+                                Width="72"
+                                Height="72"
+                                Source="{x:Bind Icon, Mode=OneWay}"
+                                Visibility="{x:Bind ShowIcon, Mode=OneWay}" />
+                            <FontIcon
+                                FontSize="56"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Glyph="&#xE7FC;"
+                                Visibility="{x:Bind ShowPlaceholder, Mode=OneWay}" />
+                        </Grid>
+
+                        <StackPanel Grid.Row="1" Padding="12,8,12,12">
                             <TextBlock
+                                MaxLines="2"
+                                Style="{StaticResource BodyStrongTextBlockStyle}"
+                                Text="{x:Bind Name, Mode=OneWay}"
+                                TextTrimming="CharacterEllipsis"
+                                TextWrapping="Wrap" />
+                            <TextBlock
+                                Margin="0,2,0,0"
                                 Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                 Style="{StaticResource CaptionTextBlockStyle}"
                                 Text="{x:Bind PlayTimeText, Mode=OneWay}" />
@@ -93,14 +115,13 @@
                                 Style="{StaticResource CaptionTextBlockStyle}"
                                 Text="{x:Bind StatusText, Mode=OneWay}"
                                 Visibility="{x:Bind HasStatus, Mode=OneWay}" />
+                            <Button
+                                Margin="0,8,0,0"
+                                HorizontalAlignment="Stretch"
+                                Command="{x:Bind PlayCommand}"
+                                Content="Играть"
+                                Style="{StaticResource AccentButtonStyle}" />
                         </StackPanel>
-                        <Button
-                            Grid.Row="3"
-                            Margin="0,8,0,0"
-                            HorizontalAlignment="Stretch"
-                            Command="{x:Bind PlayCommand}"
-                            Content="Играть"
-                            Style="{StaticResource AccentButtonStyle}" />
                     </Grid>
                 </DataTemplate>
             </GridView.ItemTemplate>

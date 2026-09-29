@@ -4,6 +4,7 @@ using System.Diagnostics;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GameLauncher.App.Services;
+using GameLauncher.Core.Artwork;
 using GameLauncher.Core.Library;
 
 namespace GameLauncher.App.ViewModels;
@@ -17,19 +18,39 @@ public sealed class MainViewModel : ObservableObject
     private readonly IDialogService _dialogs;
     private readonly string? _corruptBackupPath;
     private readonly PlayTimeMonitor _playTime;
+    private readonly ArtworkCache _artwork;
+    private readonly ISecretStore _keyStore;
+    private readonly HttpClient _http;
+    private readonly SteamGridDbClient _steamGridDb;
+    private string? _apiKey;
 
-    public MainViewModel(GameLibrary library, IDialogService dialogs, PlayTimeMonitor playTime, string? corruptBackupPath)
+    public MainViewModel(
+        GameLibrary library,
+        IDialogService dialogs,
+        PlayTimeMonitor playTime,
+        ArtworkCache artwork,
+        ISecretStore keyStore,
+        HttpClient http,
+        string? corruptBackupPath)
     {
         _library = library;
         _dialogs = dialogs;
         _playTime = playTime;
+        _artwork = artwork;
+        _keyStore = keyStore;
+        _http = http;
         _corruptBackupPath = corruptBackupPath;
+        _apiKey = keyStore.Load();
+        _steamGridDb = new SteamGridDbClient(http, () => _apiKey);
         _playTime.Changed += (_, _) => RefreshPlayTime();
 
         Games = new ObservableCollection<GameItemViewModel>(library.Games.Select(CreateItem));
         Games.CollectionChanged += (_, _) => OnPropertyChanged(nameof(IsEmpty));
         AddGameCommand = new AsyncRelayCommand(AddGameAsync);
+        EditApiKeyCommand = new AsyncRelayCommand(EditApiKeyAsync);
     }
+
+    public IAsyncRelayCommand EditApiKeyCommand { get; }
 
     public ObservableCollection<GameItemViewModel> Games { get; }
 
@@ -40,6 +61,11 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>Вызывается, когда окно готово показывать диалоги.</summary>
     public async Task OnLoadedAsync()
     {
+        foreach (var item in Games.ToList())
+        {
+            await item.LoadImagesAsync(_artwork);
+        }
+
         if (_corruptBackupPath is not null)
         {
             await _dialogs.ShowMessageAsync(
@@ -57,7 +83,122 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
-    private GameItemViewModel CreateItem(Game game) => new(game, PlayAsync, RenameAsync, DeleteAsync);
+    private GameItemViewModel CreateItem(Game game) =>
+        new(game, PlayAsync, RenameAsync, DeleteAsync, FindCoverAsync, RemoveCoverAsync);
+
+    /// <summary>Возвращает true, если после диалога ключ есть.</summary>
+    private async Task<bool> EditApiKeyAsync()
+    {
+        var result = await _dialogs.EditApiKeyAsync(
+            hasKey: _apiKey is not null,
+            validate: async key =>
+            {
+                try
+                {
+                    // Любой поиск проверяет ключ: неверный отклоняется с 401.
+                    await new SteamGridDbClient(_http, () => key).SearchGamesAsync("portal");
+                    return null;
+                }
+                catch (SteamGridDbException ex)
+                {
+                    return ex.Message;
+                }
+            });
+
+        try
+        {
+            switch (result.Action)
+            {
+                case ApiKeyDialogAction.Save:
+                    _keyStore.Save(result.Key);
+                    _apiKey = result.Key;
+                    break;
+                case ApiKeyDialogAction.Remove:
+                    _keyStore.Save(null);
+                    _apiKey = null;
+                    break;
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)
+        {
+            await _dialogs.ShowMessageAsync("Не удалось сохранить ключ", ex.Message);
+        }
+
+        return _apiKey is not null;
+    }
+
+    private async Task FindCoverAsync(GameItemViewModel item)
+    {
+        if (_apiKey is null && !await EditApiKeyAsync())
+        {
+            return;
+        }
+
+        var sgdbGame = await _dialogs.PickSteamGridDbGameAsync(item.Name, query => _steamGridDb.SearchGamesAsync(query));
+        if (sgdbGame is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var grids = await _steamGridDb.GetGridsAsync(sgdbGame.Id);
+            if (grids.Count == 0)
+            {
+                await _dialogs.ShowMessageAsync("Обложек нет", $"Для «{sgdbGame.Name}» в SteamGridDB нет вертикальных обложек.");
+                return;
+            }
+
+            var grid = await _dialogs.PickImageAsync($"Обложка: {sgdbGame.Name}", grids.Take(30).ToList());
+            if (grid is null)
+            {
+                return;
+            }
+
+            var gridFile = await _artwork.DownloadAsync(item.Id, ArtworkKind.Grid, grid.Url);
+
+            // Баннер берём лучший по рейтингу; если его нет — оставляем без баннера.
+            string? heroFile = null;
+            var heroes = await _steamGridDb.GetHeroesAsync(sgdbGame.Id);
+            if (heroes.Count > 0)
+            {
+                heroFile = await _artwork.DownloadAsync(item.Id, ArtworkKind.Hero, heroes[0].Url);
+            }
+            else
+            {
+                _artwork.Delete(item.Id, ArtworkKind.Hero);
+            }
+
+            _library.SetArtwork(item.Id, gridFile, heroFile);
+        }
+        catch (SteamGridDbException ex)
+        {
+            await _dialogs.ShowMessageAsync("SteamGridDB", ex.Message);
+            return;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or IOException or UnauthorizedAccessException or TaskCanceledException)
+        {
+            await _dialogs.ShowMessageAsync("Не удалось сохранить обложку", ex.Message);
+            return;
+        }
+
+        await item.LoadImagesAsync(_artwork);
+    }
+
+    private async Task RemoveCoverAsync(GameItemViewModel item)
+    {
+        try
+        {
+            _library.SetArtwork(item.Id, null, null);
+            _artwork.Delete(item.Id);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            await _dialogs.ShowMessageAsync("Не удалось убрать обложку", ex.Message);
+        }
+
+        await item.LoadImagesAsync(_artwork);
+    }
 
     private async Task AddGameAsync()
     {
@@ -85,7 +226,9 @@ public sealed class MainViewModel : ObservableObject
             return;
         }
 
-        Games.Add(CreateItem(game));
+        var item = CreateItem(game);
+        Games.Add(item);
+        await item.LoadImagesAsync(_artwork);
     }
 
     private async Task PlayAsync(GameItemViewModel item)
@@ -150,5 +293,13 @@ public sealed class MainViewModel : ObservableObject
         }
 
         Games.Remove(item);
+        try
+        {
+            _artwork.Delete(item.Id);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Картинки в кэше не мешают работе — не беспокоим пользователя.
+        }
     }
 }
