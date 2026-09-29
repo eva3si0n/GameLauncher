@@ -21,6 +21,9 @@ jobs:
       - uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
+          # Кэш пакетов NuGet; ключ меняется вместе с версиями пакетов.
+          cache: true
+          cache-dependency-path: Directory.Packages.props
 
       - name: Restore
         run: dotnet restore GameLauncher.slnx

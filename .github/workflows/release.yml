@@ -27,6 +27,9 @@ jobs:
       - uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
+          # Кэш пакетов NuGet; ключ меняется вместе с версиями пакетов.
+          cache: true
+          cache-dependency-path: Directory.Packages.props
 
       - name: Version
         id: version
@@ -59,9 +62,15 @@ jobs:
           }
           Stop-Process -Id $p.Id -Force
 
-      - name: Zip
+      - name: Zip and checksum
         shell: pwsh
-        run: Compress-Archive -Path artifacts/GameLauncher/* -DestinationPath "artifacts/GameLauncher-${{ steps.version.outputs.version }}-win-x64.zip"
+        run: |
+          $zip = "artifacts/GameLauncher-${{ steps.version.outputs.version }}-win-x64.zip"
+          Compress-Archive -Path artifacts/GameLauncher/* -DestinationPath $zip
+          # Контрольная сумма — чтобы проверить, что скачанный файл не повреждён (Get-FileHash <файл>).
+          $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $(Split-Path $zip -Leaf)" | Set-Content -Encoding ascii "$zip.sha256"
+          Write-Host "SHA256: $hash"
 
       # При push тега он уже есть; при ручном запуске gh создаст тег на текущем коммите.
       - name: Create release
@@ -70,6 +79,7 @@ jobs:
         run: >-
           gh release create "${{ steps.version.outputs.tag }}"
           "artifacts/GameLauncher-${{ steps.version.outputs.version }}-win-x64.zip"
+          "artifacts/GameLauncher-${{ steps.version.outputs.version }}-win-x64.zip.sha256"
           --title "GameLauncher ${{ steps.version.outputs.version }}"
           --target "${{ github.sha }}"
           --generate-notes
