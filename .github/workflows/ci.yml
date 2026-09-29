@@ -56,6 +56,21 @@ jobs:
           } else {
             $p.Refresh()
             Write-Host "Process alive after 20s, MainWindowHandle=$($p.MainWindowHandle), title='$($p.MainWindowTitle)'"
+
+            # Второй запуск должен передать активацию первому и сразу завершиться (один экземпляр).
+            $second = Start-Process -FilePath artifacts/GameLauncher/GameLauncher.exe -PassThru
+            if (-not $second.WaitForExit(15000)) {
+              Stop-Process -Id $second.Id -Force
+              Stop-Process -Id $p.Id -Force
+              Write-Error "Второй экземпляр не завершился за 15 с"
+              exit 1
+            }
+            Write-Host ("Second instance exited, code 0x{0:X8}" -f $second.ExitCode)
+            $p.Refresh()
+            if ($p.HasExited) {
+              Write-Error "Первый экземпляр закрылся после запуска второго"
+              exit 1
+            }
             Stop-Process -Id $p.Id -Force
           }
           Get-WinEvent -FilterHashtable @{ LogName = 'Application'; StartTime = $start } -ErrorAction SilentlyContinue |

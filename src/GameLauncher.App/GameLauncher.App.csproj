@@ -8,9 +8,11 @@
     <SupportedOSPlatformVersion>10.0.22000.0</SupportedOSPlatformVersion>
     <RootNamespace>GameLauncher.App</RootNamespace>
     <AssemblyName>GameLauncher</AssemblyName>
-    <Version>1.0.0</Version>
+    <Version>1.0.1</Version>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <UseWinUI>true</UseWinUI>
+    <!-- Своя точка входа (Program.cs): лаунчер работает в одном экземпляре -->
+    <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
 
     <!-- Первая версия: только x64 -->
     <PlatformTarget>x64</PlatformTarget>

@@ -42,6 +42,7 @@
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
             <AutoSuggestBox
                 x:Name="SearchBox"
+                AutomationProperties.Name="Поиск по библиотеке"
                 Width="280"
                 PlaceholderText="Поиск (Ctrl+F)"
                 QueryIcon="Find"
@@ -50,7 +51,7 @@
                     <KeyboardAccelerator Key="F" Invoked="OnSearchAccelerator" Modifiers="Control" />
                 </AutoSuggestBox.KeyboardAccelerators>
             </AutoSuggestBox>
-            <Button Command="{x:Bind ViewModel.OpenSettingsCommand}" ToolTipService.ToolTip="Настройки">
+            <Button AutomationProperties.Name="Настройки" Command="{x:Bind ViewModel.OpenSettingsCommand}" ToolTipService.ToolTip="Настройки">
                 <FontIcon FontSize="14" Glyph="&#xE713;" />
             </Button>
             <Button
@@ -76,6 +77,7 @@
                 <DataTemplate x:DataType="vm:GameItemViewModel">
                     <Grid
                         Width="176"
+                        AutomationProperties.Name="{x:Bind Name, Mode=OneWay}"
                         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                         BorderThickness="1"
@@ -202,6 +204,7 @@
                         Margin="16"
                         HorizontalAlignment="Left"
                         VerticalAlignment="Top"
+                        AutomationProperties.Name="Назад"
                         Command="{x:Bind ViewModel.CloseDetailsCommand}"
                         ToolTipService.ToolTip="Назад (Esc)">
                         <Button.KeyboardAccelerators>
@@ -309,6 +312,7 @@
                             <DataTemplate x:DataType="vm:ScreenshotViewModel">
                                 <Border
                                     Width="240"
+                                    AutomationProperties.Name="Скриншот"
                                     Height="135"
                                     Background="{ThemeResource LayerFillColorDefaultBrush}"
                                     CornerRadius="4">
@@ -364,7 +368,7 @@
             Visibility="{x:Bind ViewModel.IsSettingsOpen, Mode=OneWay}">
             <StackPanel MaxWidth="860" Padding="0,8,0,24" HorizontalAlignment="Stretch" Spacing="16">
                 <StackPanel Orientation="Horizontal" Spacing="12">
-                    <Button Command="{x:Bind ViewModel.CloseSettingsCommand}" ToolTipService.ToolTip="Назад (Esc)">
+                    <Button AutomationProperties.Name="Назад" Command="{x:Bind ViewModel.CloseSettingsCommand}" ToolTipService.ToolTip="Назад (Esc)">
                         <Button.KeyboardAccelerators>
                             <KeyboardAccelerator Key="Escape" />
                         </Button.KeyboardAccelerators>
