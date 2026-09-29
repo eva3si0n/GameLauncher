@@ -79,6 +79,21 @@ public sealed class GameLibrary
         SaveOrRollback(() => _data.Games.Insert(index, game));
     }
 
+    /// <summary>Добавляет время игры и сохраняет.</summary>
+    public void AddPlayTime(Guid id, TimeSpan delta, DateTimeOffset playedAt)
+    {
+        if (delta < TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(delta), "Время не может быть отрицательным.");
+        }
+
+        var game = Find(id);
+        var (oldTotal, oldLast) = (game.TotalPlayTime, game.LastPlayedAt);
+        game.TotalPlayTime += delta;
+        game.LastPlayedAt = playedAt;
+        SaveOrRollback(() => (game.TotalPlayTime, game.LastPlayedAt) = (oldTotal, oldLast));
+    }
+
     private void SaveOrRollback(Action rollback)
     {
         try

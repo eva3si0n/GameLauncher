@@ -53,6 +53,7 @@
                             <RowDefinition Height="*" />
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
                         <Grid.ContextFlyout>
                             <MenuFlyout>
@@ -82,8 +83,19 @@
                             Text="{x:Bind Name, Mode=OneWay}"
                             TextTrimming="CharacterEllipsis"
                             TextWrapping="Wrap" />
+                        <StackPanel Grid.Row="2" Margin="0,2,0,0">
+                            <TextBlock
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                Text="{x:Bind PlayTimeText, Mode=OneWay}" />
+                            <TextBlock
+                                Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                Text="{x:Bind StatusText, Mode=OneWay}"
+                                Visibility="{x:Bind HasStatus, Mode=OneWay}" />
+                        </StackPanel>
                         <Button
-                            Grid.Row="2"
+                            Grid.Row="3"
                             Margin="0,8,0,0"
                             HorizontalAlignment="Stretch"
                             Command="{x:Bind PlayCommand}"
