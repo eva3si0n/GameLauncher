@@ -69,17 +69,31 @@ public partial class App : Application
             new WindowsRunningProcesses(),
             _dispatcher);
 
+        var artwork = new ArtworkCache(AppPaths.ArtworkDirectory, Http);
+        var detailsStore = new GameDetailsStore(AppPaths.GameDetailsDirectory);
+
         _window = new MainWindow(window =>
-            new MainViewModel(
-                library,
-                new DialogService(window),
-                playTime,
-                new ArtworkCache(AppPaths.ArtworkDirectory, Http),
-                new DpapiSecretStore(AppPaths.SteamGridDbKeyPath),
-                new GameDetailsStore(AppPaths.GameDetailsDirectory),
+        {
+            var dialogs = new DialogService(window);
+            var settings = new SettingsViewModel(
                 new SettingsStore(AppPaths.SettingsFilePath),
-                Http,
-                store.CorruptBackupPath));
+                new DpapiSecretStore(AppPaths.SteamGridDbKeyPath),
+                dialogs,
+                Http);
+            var steamGridDb = new SteamGridDbClient(Http, () => settings.ApiKey);
+            var details = new DetailsService(library, detailsStore, new SteamStoreClient(Http, primaryRegion: () => settings.SteamRegion));
+            return new MainViewModel(
+                library,
+                dialogs,
+                playTime,
+                artwork,
+                steamGridDb,
+                new CoverService(library, artwork, steamGridDb, details),
+                details,
+                new GameRemover(library, artwork, detailsStore),
+                settings,
+                store.CorruptBackupPath);
+        });
         // Ограничение первой версии: время считается, только пока лаунчер открыт.
         _window.Closed += (_, _) => playTime.Stop();
         _window.Activate();

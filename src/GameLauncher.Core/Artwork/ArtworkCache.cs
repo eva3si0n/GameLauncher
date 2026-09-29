@@ -35,44 +35,47 @@ public sealed class ArtworkCache(string directory, HttpClient http)
         };
         var fileName = $"{gameId:N}-{kind.ToString().ToLowerInvariant()}{extension}";
         var path = Path.Combine(Directory, fileName);
-        var tempPath = path + ".tmp";
 
-        try
+        using (var response = await http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken))
         {
-            using (var response = await http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken))
-            {
-                response.EnsureSuccessStatusCode();
-                await using var source = await response.Content.ReadAsStreamAsync(cancellationToken);
-                await using var target = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None);
-                await source.CopyToAsync(target, cancellationToken);
-            }
+            response.EnsureSuccessStatusCode();
+            await AtomicFile.WriteAsync(
+                path,
+                async (target, ct) =>
+                {
+                    await using var source = await response.Content.ReadAsStreamAsync(ct);
+                    await source.CopyToAsync(target, ct);
+                },
+                cancellationToken);
+        }
 
-            // Другие виды картинки этой игры (с иным расширением) больше не нужны.
-            Delete(gameId, kind);
-            File.Move(tempPath, path, overwrite: true);
-            return fileName;
-        }
-        finally
+        // Картинка того же вида с другим расширением (прежняя) больше не нужна.
+        foreach (var old in EnumerateFiles(gameId, kind).Where(f => !string.Equals(f, path, StringComparison.OrdinalIgnoreCase)))
         {
-            File.Delete(tempPath);
+            File.Delete(old);
         }
+
+        return fileName;
     }
 
     /// <summary>Удаляет картинки игры: одного вида или все.</summary>
     public void Delete(Guid gameId, ArtworkKind? kind = null)
     {
+        foreach (var file in EnumerateFiles(gameId, kind).ToList())
+        {
+            File.Delete(file);
+        }
+    }
+
+    private IEnumerable<string> EnumerateFiles(Guid gameId, ArtworkKind? kind)
+    {
         if (!System.IO.Directory.Exists(Directory))
         {
-            return;
+            return [];
         }
 
         var pattern = kind is { } k ? $"{gameId:N}-{k.ToString().ToLowerInvariant()}.*" : $"{gameId:N}-*";
-        foreach (var file in System.IO.Directory.EnumerateFiles(Directory, pattern))
-        {
-            if (!file.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase))
-            {
-                File.Delete(file);
-            }
-        }
+        return System.IO.Directory.EnumerateFiles(Directory, pattern)
+            .Where(f => !f.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase));
     }
 }

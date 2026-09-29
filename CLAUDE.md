@@ -13,7 +13,8 @@
 
 ## Структура
 - `src/GameLauncher.Core` — `net10.0`, никаких зависимостей от Windows. Всё, что трогает ОС (процессы, DPAPI, иконки), — за интерфейсом; реализация в App.
-- `src/GameLauncher.App` — WinUI 3, `net10.0-windows`.
+- `src/GameLauncher.App` — WinUI 3, `net10.0-windows`. ViewModel отвечают за экран и диалоги; логику (обложки — `CoverService`, описания — `DetailsService`, удаление — `GameRemover`) держать в сервисах Core, чтобы она покрывалась тестами на Linux.
+- Запись файлов данных — только через `AtomicFile` (Core).
 - `tests/GameLauncher.Core.Tests` — тесты Core.
 - Данные пользователя — JSON в `%LocalAppData%\GameLauncher`, запись атомарная (временный файл + замена).
 

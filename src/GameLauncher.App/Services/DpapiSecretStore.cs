@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using GameLauncher.Core;
 using GameLauncher.Core.Artwork;
 
 namespace GameLauncher.App.Services;
@@ -40,9 +41,6 @@ public sealed class DpapiSecretStore(string filePath) : ISecretStore
         }
 
         var encrypted = ProtectedData.Protect(Encoding.UTF8.GetBytes(secret.Trim()), Entropy, DataProtectionScope.CurrentUser);
-        Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
-        var tempPath = filePath + ".tmp";
-        File.WriteAllBytes(tempPath, encrypted);
-        File.Move(tempPath, filePath, overwrite: true);
+        AtomicFile.WriteAllBytes(filePath, encrypted);
     }
 }
