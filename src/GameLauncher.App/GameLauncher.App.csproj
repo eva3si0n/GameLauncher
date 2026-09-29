@@ -17,6 +17,8 @@
 
     <!-- Unpackaged + self-contained: папка с exe, ничего не нужно ставить -->
     <WindowsPackageType>None</WindowsPackageType>
+    <!-- Нужно и без MSIX: подключает генерацию и копирование .pri с ресурсами XAML (как в шаблоне WinUI 3) -->
+    <EnableMsixTooling>true</EnableMsixTooling>
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
     <SelfContained>true</SelfContained>
   </PropertyGroup>

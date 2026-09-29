@@ -45,7 +45,7 @@ jobs:
       - name: Smoke launch
         shell: pwsh
         run: |
-          Get-ChildItem artifacts/GameLauncher -File | Where-Object { $_.Extension -in '.exe','.pri' -or $_.Name -like 'Microsoft.WindowsAppRuntime*' -or $_.Name -like 'Microsoft.ui.xaml*' } | Format-Table Name, Length -AutoSize | Out-String | Write-Host
+          Get-ChildItem artifacts/GameLauncher -File | Where-Object { $_.Extension -in '.exe','.pri','.xbf' -or $_.Name -like 'Microsoft.WindowsAppRuntime*' -or $_.Name -like 'Microsoft.ui.xaml*' } | Format-Table Name, Length -AutoSize | Out-String | Write-Host
           $start = Get-Date
           $p = Start-Process -FilePath artifacts/GameLauncher/GameLauncher.exe -PassThru
           $exited = $p.WaitForExit(20000)
