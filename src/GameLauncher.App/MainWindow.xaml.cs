@@ -15,6 +15,12 @@ public sealed partial class MainWindow : Window
     /// <summary>Последние размер и положение в обычном (не развёрнутом) состоянии.</summary>
     private PixelRect _normalBounds;
 
+    /// <summary>Окно хоть раз показывали. При запуске в трей до первого показа размер не сохраняем — он ещё не применён.</summary>
+    private bool _shown;
+
+    /// <summary>Закрытие по-настоящему (выход из меню трея), а не в трей.</summary>
+    private bool _exiting;
+
     public MainWindow(Func<Window, MainViewModel> createViewModel)
     {
         ViewModel = createViewModel(this);
@@ -32,12 +38,44 @@ public sealed partial class MainWindow : Window
 
         RestorePlacement();
         AppWindow.Changed += OnAppWindowChanged;
-        AppWindow.Closing += (_, _) => SavePlacement();
+        AppWindow.Closing += OnClosing;
+        Activated += (_, _) => _shown = true;
 
         Root.Loaded += async (_, _) => await ViewModel.OnLoadedAsync();
     }
 
     public MainViewModel ViewModel { get; }
+
+    /// <summary>Есть ли куда прятать окно (значок в трее показан). Задаёт App.</summary>
+    public Func<bool> CanHideToTray { get; set; } = () => false;
+
+    /// <summary>Окно спрятано в трей по крестику.</summary>
+    public event EventHandler? HiddenToTray;
+
+    /// <summary>Показать окно (из трея, свёрнутое или ещё ни разу не показанное) и вывести на передний план.</summary>
+    public void ShowAndActivate()
+    {
+        AppWindow.Show();
+        if (AppWindow.Presenter is OverlappedPresenter { State: OverlappedPresenterState.Minimized } presenter)
+        {
+            presenter.Restore();
+        }
+
+        Activate();
+    }
+
+    /// <summary>Закрыть окно по-настоящему — лаунчер завершается.</summary>
+    public void CloseForExit()
+    {
+        _exiting = true;
+        // AppWindow.Closing приходит только при закрытии средствами системы (крестик, Alt+F4), не от Close().
+        if (_shown)
+        {
+            SavePlacement();
+        }
+
+        Close();
+    }
 
     private PixelRect CurrentBounds => new(AppWindow.Position.X, AppWindow.Position.Y, AppWindow.Size.Width, AppWindow.Size.Height);
 
@@ -80,6 +118,22 @@ public sealed partial class MainWindow : Window
             }
 
             Activated += MaximizeOnce;
+        }
+    }
+
+    private void OnClosing(AppWindow sender, AppWindowClosingEventArgs args)
+    {
+        if (_shown)
+        {
+            SavePlacement();
+        }
+
+        if (!_exiting && ViewModel.Settings.CloseToTray && CanHideToTray())
+        {
+            // Крестик — в трей: окно прячется, лаунчер и учёт времени продолжают работать.
+            args.Cancel = true;
+            AppWindow.Hide();
+            HiddenToTray?.Invoke(this, EventArgs.Empty);
         }
     }
 

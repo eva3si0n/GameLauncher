@@ -17,6 +17,12 @@ public sealed class AppSettings
     /// <summary>Основная витрина Steam для описаний (код страны: tr, us, ru…).</summary>
     public string SteamRegion { get; set; } = DefaultSteamRegion;
 
+    /// <summary>Крестик прячет окно в трей (время игр продолжает считаться); false — закрывает лаунчер.</summary>
+    public bool CloseToTray { get; set; } = true;
+
+    /// <summary>Подсказка «лаунчер работает в трее» уже показывалась.</summary>
+    public bool TrayHintShown { get; set; }
+
     /// <summary>Размер и положение окна при последнем закрытии; null — ещё не сохранялись.</summary>
     public WindowPlacement? Window { get; set; }
 }

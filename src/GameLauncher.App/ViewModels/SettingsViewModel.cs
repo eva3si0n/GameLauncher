@@ -6,10 +6,11 @@ using GameLauncher.App.Services;
 using GameLauncher.Core;
 using GameLauncher.Core.Artwork;
 using GameLauncher.Core.Settings;
+using GameLauncher.Core.Startup;
 
 namespace GameLauncher.App.ViewModels;
 
-/// <summary>Страница настроек: тема, ключ SteamGridDB, витрина Steam, папка данных; а также размер окна.</summary>
+/// <summary>Страница настроек: тема, трей и автозапуск, ключ SteamGridDB, витрина Steam, папка данных; а также размер окна.</summary>
 public sealed class SettingsViewModel : ObservableObject
 {
     private readonly SettingsStore _store;
@@ -17,14 +18,16 @@ public sealed class SettingsViewModel : ObservableObject
     private readonly ISecretStore _keyStore;
     private readonly IDialogService _dialogs;
     private readonly HttpClient _http;
+    private readonly Autostart _autostart;
 
-    public SettingsViewModel(SettingsStore store, ISecretStore keyStore, IDialogService dialogs, HttpClient http)
+    public SettingsViewModel(SettingsStore store, ISecretStore keyStore, IDialogService dialogs, HttpClient http, Autostart autostart)
     {
         _store = store;
         _settings = store.Load();
         _keyStore = keyStore;
         _dialogs = dialogs;
         _http = http;
+        _autostart = autostart;
         ApiKey = keyStore.Load();
 
         EditApiKeyCommand = new AsyncRelayCommand(EditApiKeyAsync);
@@ -58,6 +61,71 @@ public sealed class SettingsViewModel : ObservableObject
             OnPropertyChanged();
             ThemeChanged?.Invoke(this, EventArgs.Empty);
         }
+    }
+
+    /// <summary>Крестик прячет окно в трей; выключено — закрывает лаунчер.</summary>
+    public bool CloseToTray
+    {
+        get => _settings.CloseToTray;
+        set
+        {
+            if (value == _settings.CloseToTray)
+            {
+                return;
+            }
+
+            _settings.CloseToTray = value;
+            Save();
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>Автозапуск вместе с Windows (сразу в трей). Состояние читается из реестра, а не из настроек.</summary>
+    public bool StartWithWindows
+    {
+        get
+        {
+            try
+            {
+                return _autostart.IsEnabled;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+            {
+                return false;
+            }
+        }
+        set
+        {
+            if (value == StartWithWindows)
+            {
+                return;
+            }
+
+            try
+            {
+                _autostart.SetEnabled(value);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+            {
+                _ = _dialogs.ShowMessageAsync("Не удалось изменить автозапуск", ex.Message);
+            }
+
+            // Переключатель показывает то, что реально записалось.
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>Подсказку «лаунчер в трее» показываем один раз — при первом сворачивании.</summary>
+    public bool TryMarkTrayHintShown()
+    {
+        if (_settings.TrayHintShown)
+        {
+            return false;
+        }
+
+        _settings.TrayHintShown = true;
+        Save();
+        return true;
     }
 
     /// <summary>Витрины Steam для описаний: код страны и название.</summary>
