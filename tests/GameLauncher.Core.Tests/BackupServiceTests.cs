@@ -66,6 +66,21 @@ public sealed class BackupServiceTests : IDisposable
     }
 
     [Fact]
+    public void SessionHistory_IsBackedUpAndRestored_EvenInDailyBackup()
+    {
+        SeedData();
+        WriteData("sessions.json", """{"version":1,"sessions":[]}""");
+        var service = CreateService();
+
+        var daily = service.EnsureDailyBackup()!;
+        Assert.Contains("sessions.json", EntryNames(daily));
+
+        WriteData("sessions.json", "другая");
+        service.Restore(daily);
+        Assert.Equal("""{"version":1,"sessions":[]}""", File.ReadAllText(Data("sessions.json")));
+    }
+
+    [Fact]
     public void Create_WithoutLibrary_Throws()
     {
         var ex = Assert.Throws<BackupException>(() => CreateService().Create(ZipPath));

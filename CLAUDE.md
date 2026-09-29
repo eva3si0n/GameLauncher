@@ -15,6 +15,7 @@
 - `src/GameLauncher.Core` — `net10.0`, никаких зависимостей от Windows. Всё, что трогает ОС (процессы, DPAPI, иконки), — за интерфейсом; реализация в App.
 - `src/GameLauncher.App` — WinUI 3, `net10.0-windows`. ViewModel отвечают за экран и диалоги; логику (обложки — `CoverService`, описания — `DetailsService`, удаление — `GameRemover`) держать в сервисах Core, чтобы она покрывалась тестами на Linux.
 - Запись файлов данных — только через `AtomicFile` (Core). Резервные копии — `BackupService` (Core): читает файлы с `FileShare.ReadWrite | Delete`, чтобы не мешать атомарной замене.
+- История сессий — `PlayHistory` (`sessions.json`, Core); пишет `PlaySessionTracker` при каждом сохранении времени (одна запись на сессию, обновляется). Расчёты статистики — `PlayStats`. Общее время игры (`Game.TotalPlayTime`) остаётся главным: в нём и время до появления истории.
 - `tests/GameLauncher.Core.Tests` — тесты Core.
 - Иконка — `src/GameLauncher.App/Assets/GameLauncher.ico` (exe и окно) и `TitleBarIcon.png` (строка заголовка); генерируется `tools/icon/make_icon.py` (геймпад — Fluent UI System Icons, MIT; логотип Xbox — товарный знак, не использовать), руками не править. Сведения о файле (автор, копирайт) — в `GameLauncher.App.csproj`, CI проверяет, что они не пустые.
 - Данные пользователя — JSON в `%LocalAppData%\GameLauncher`, запись атомарная (временный файл + замена).

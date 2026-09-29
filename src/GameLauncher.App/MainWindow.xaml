@@ -283,6 +283,80 @@
                         TextWrapping="Wrap" />
                 </Grid>
 
+                <!-- Статистика по истории сессий -->
+                <StackPanel Margin="24,32,24,0" Spacing="12">
+                    <TextBlock Style="{StaticResource SubtitleTextBlockStyle}" Text="Статистика" />
+                    <TextBlock
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Text="Сессий пока нет. История копится с версии 1.2: время, наигранное раньше, учтено только в «Сыграно»."
+                        TextWrapping="Wrap"
+                        Visibility="{x:Bind ViewModel.SelectedStats.HasNoHistory, Mode=OneWay, FallbackValue=Collapsed}" />
+                    <StackPanel Spacing="16" Visibility="{x:Bind ViewModel.SelectedStats.HasHistory, Mode=OneWay, FallbackValue=Collapsed}">
+                        <Grid ColumnSpacing="48" RowSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="За 7 дней" />
+                            <TextBlock Grid.Column="1" Text="{x:Bind ViewModel.SelectedStats.Last7DaysText, Mode=OneWay}" />
+                            <TextBlock Grid.Row="1" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="За 30 дней" />
+                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{x:Bind ViewModel.SelectedStats.Last30DaysText, Mode=OneWay}" />
+                            <TextBlock Grid.Row="2" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="Сессий" />
+                            <TextBlock Grid.Row="2" Grid.Column="1" Text="{x:Bind ViewModel.SelectedStats.SessionCountText, Mode=OneWay}" />
+                            <TextBlock Grid.Row="3" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="В среднем за сессию" />
+                            <TextBlock Grid.Row="3" Grid.Column="1" Text="{x:Bind ViewModel.SelectedStats.AverageText, Mode=OneWay}" />
+                            <TextBlock Grid.Row="4" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="Самая долгая" />
+                            <TextBlock Grid.Row="4" Grid.Column="1" Text="{x:Bind ViewModel.SelectedStats.LongestText, Mode=OneWay}" />
+                        </Grid>
+
+                        <StackPanel Spacing="4">
+                            <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="По дням за 30 дней" />
+                            <!-- Столбики: высота — время за день; подсказка при наведении -->
+                            <ItemsControl Height="84" ItemsSource="{x:Bind ViewModel.SelectedStats.Days, Mode=OneWay}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Horizontal" Spacing="3" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:DayBar">
+                                        <Grid Width="12" Height="84" Background="Transparent" ToolTipService.ToolTip="{x:Bind ToolTip}">
+                                            <Border
+                                                Height="{x:Bind Height}"
+                                                VerticalAlignment="Bottom"
+                                                Background="{ThemeResource AccentFillColorDefaultBrush}"
+                                                CornerRadius="2"
+                                                Opacity="{x:Bind Opacity}" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                Text="{x:Bind ViewModel.SelectedStats.ChartCaption, Mode=OneWay}" />
+                        </StackPanel>
+
+                        <StackPanel Spacing="4">
+                            <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="Последние сессии" />
+                            <ItemsControl ItemsSource="{x:Bind ViewModel.SelectedStats.Recent, Mode=OneWay}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="x:String">
+                                        <TextBlock Margin="0,2" Text="{x:Bind}" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+
                 <!-- Описание из Steam -->
                 <StackPanel
                     Margin="24,32,24,0"
