@@ -36,6 +36,27 @@ public sealed class SteamGridDbClient(HttpClient http, Func<string?> apiKey)
             .ToList();
     }
 
+    /// <summary>
+    /// Steam AppID игры из SteamGridDB (параметр platformdata=steam). Null — у игры нет привязки к Steam.
+    /// </summary>
+    public async Task<int?> GetSteamAppIdAsync(int gameId, CancellationToken cancellationToken = default)
+    {
+        var game = await GetAsync<GameWithPlatformsDto>($"games/id/{gameId}?platformdata=steam", cancellationToken);
+        var id = game.ExternalPlatformData?.GetValueOrDefault("steam")?.FirstOrDefault()?.Id;
+
+        // SteamGridDB отдаёт id строкой, но принимаем и число.
+        return id switch
+        {
+            { ValueKind: JsonValueKind.Number } n when n.TryGetInt32(out var number) && number > 0 => number,
+            { ValueKind: JsonValueKind.String } s when int.TryParse(
+                s.GetString(),
+                System.Globalization.NumberStyles.None,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out var parsed) && parsed > 0 => parsed,
+            _ => null,
+        };
+    }
+
     /// <summary>Вертикальные обложки игры, лучшие (по рейтингу) — первыми.</summary>
     public Task<IReadOnlyList<SteamGridDbImage>> GetGridsAsync(int gameId, CancellationToken cancellationToken = default) =>
         GetImagesAsync($"grids/game/{gameId}?{GridQuery}", cancellationToken);
@@ -132,6 +153,17 @@ public sealed class SteamGridDbClient(HttpClient http, Func<string?> apiKey)
 
         [JsonPropertyName("release_date")]
         public long? ReleaseDate { get; set; }
+    }
+
+    private sealed class GameWithPlatformsDto
+    {
+        [JsonPropertyName("external_platform_data")]
+        public Dictionary<string, List<PlatformEntryDto>>? ExternalPlatformData { get; set; }
+    }
+
+    private sealed class PlatformEntryDto
+    {
+        public JsonElement? Id { get; set; }
     }
 
     private sealed class ImageDto

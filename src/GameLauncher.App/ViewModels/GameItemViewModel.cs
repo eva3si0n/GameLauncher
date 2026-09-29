@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GameLauncher.App.Services;
 using GameLauncher.Core.Artwork;
+using GameLauncher.Core.GameInfo;
 using GameLauncher.Core.Library;
 using GameLauncher.Core.PlayTime;
 using Microsoft.UI.Xaml.Media;
@@ -16,6 +17,8 @@ public sealed class GameItemViewModel : ObservableObject
     private ImageSource? _cover;
     private ImageSource? _icon;
     private ImageSource? _hero;
+    private GameDetails? _details;
+    private IReadOnlyList<ScreenshotViewModel> _screenshots = [];
 
     public GameItemViewModel(
         Game game,
@@ -23,7 +26,8 @@ public sealed class GameItemViewModel : ObservableObject
         Func<GameItemViewModel, Task> rename,
         Func<GameItemViewModel, Task> delete,
         Func<GameItemViewModel, Task> findCover,
-        Func<GameItemViewModel, Task> removeCover)
+        Func<GameItemViewModel, Task> removeCover,
+        Func<GameItemViewModel, bool, Task> fetchDetails)
     {
         _game = game;
         PlayCommand = new AsyncRelayCommand(() => play(this));
@@ -32,6 +36,8 @@ public sealed class GameItemViewModel : ObservableObject
         FindCoverCommand = new AsyncRelayCommand(() => findCover(this));
         RemoveCoverCommand = new AsyncRelayCommand(() => removeCover(this), () => _game.GridFile is not null);
         OpenFolderCommand = new RelayCommand(OpenFolder);
+        FindDetailsCommand = new AsyncRelayCommand(() => fetchDetails(this, true));
+        RefreshDetailsCommand = new AsyncRelayCommand(() => fetchDetails(this, false), () => _game.SteamAppId is not null);
     }
 
     public Game Game => _game;
@@ -131,6 +137,67 @@ public sealed class GameItemViewModel : ObservableObject
     public IAsyncRelayCommand RemoveCoverCommand { get; }
 
     public IRelayCommand OpenFolderCommand { get; }
+
+    /// <summary>Найти игру в Steam вручную и загрузить описание.</summary>
+    public IAsyncRelayCommand FindDetailsCommand { get; }
+
+    /// <summary>Перезагрузить описание по уже известному Steam AppID.</summary>
+    public IAsyncRelayCommand RefreshDetailsCommand { get; }
+
+    /// <summary>Описание из Steam; null — не загружено.</summary>
+    public GameDetails? Details
+    {
+        get => _details;
+        set
+        {
+            if (SetProperty(ref _details, value))
+            {
+                _screenshots = value?.Screenshots.Select((s, i) => new ScreenshotViewModel(s, i)).ToList() ?? [];
+                OnPropertyChanged(nameof(HasDetails));
+                OnPropertyChanged(nameof(HasNoDetails));
+                OnPropertyChanged(nameof(ShortDescription));
+                OnPropertyChanged(nameof(About));
+                OnPropertyChanged(nameof(HasAbout));
+                OnPropertyChanged(nameof(GenresText));
+                OnPropertyChanged(nameof(DevelopersText));
+                OnPropertyChanged(nameof(PublishersText));
+                OnPropertyChanged(nameof(SteamReleaseDate));
+                OnPropertyChanged(nameof(DetailsSourceText));
+                OnPropertyChanged(nameof(Screenshots));
+                OnPropertyChanged(nameof(HasScreenshots));
+                RefreshDetailsCommand.NotifyCanExecuteChanged();
+            }
+        }
+    }
+
+    public bool HasDetails => _details is not null;
+
+    public bool HasNoDetails => _details is null;
+
+    public string ShortDescription => _details?.ShortDescription ?? "";
+
+    public string About => _details?.About ?? "";
+
+    public bool HasAbout => !string.IsNullOrWhiteSpace(_details?.About);
+
+    public string GenresText => JoinOrDash(_details?.Genres);
+
+    public string DevelopersText => JoinOrDash(_details?.Developers);
+
+    public string PublishersText => JoinOrDash(_details?.Publishers);
+
+    public string SteamReleaseDate => string.IsNullOrWhiteSpace(_details?.ReleaseDate) ? "—" : _details.ReleaseDate;
+
+    public string DetailsSourceText => _details is null
+        ? ""
+        : $"Описание из Steam: {_details.SteamName} (AppID {_details.SteamAppId}), загружено {PlayTimeFormat.FormatDate(_details.FetchedAt, TimeZoneInfo.Local)}";
+
+    public IReadOnlyList<ScreenshotViewModel> Screenshots => _screenshots;
+
+    public bool HasScreenshots => _screenshots.Count > 0;
+
+    private static string JoinOrDash(IReadOnlyList<string>? values) =>
+        values is { Count: > 0 } ? string.Join(", ", values) : "—";
 
     /// <summary>Сообщить UI, что данные игры изменились (например, после переименования).</summary>
     public void Refresh()

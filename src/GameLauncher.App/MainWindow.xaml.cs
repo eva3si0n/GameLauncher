@@ -14,6 +14,14 @@ public sealed partial class MainWindow : Window
 
     public MainViewModel ViewModel { get; }
 
+    private async void OnScreenshotClick(object sender, Microsoft.UI.Xaml.Controls.ItemClickEventArgs e)
+    {
+        if (e.ClickedItem is ScreenshotViewModel screenshot)
+        {
+            await ViewModel.ShowScreenshotAsync(screenshot);
+        }
+    }
+
     private async void OnGameClick(object sender, Microsoft.UI.Xaml.Controls.ItemClickEventArgs e)
     {
         if (e.ClickedItem is GameItemViewModel item)

@@ -125,10 +125,15 @@ public sealed class DialogService(Window window) : IDialogService
         };
     }
 
-    public async Task<SteamGridDbGame?> PickSteamGridDbGameAsync(
-        string initialQuery, Func<string, Task<IReadOnlyList<SteamGridDbGame>>> search)
+    public async Task<T?> PickFromSearchAsync<T>(
+        string title,
+        string initialQuery,
+        Func<string, Task<IReadOnlyList<T>>> search,
+        Func<T, string> display,
+        Func<Exception, string?> describeError)
+        where T : class
     {
-        IReadOnlyList<SteamGridDbGame> results = [];
+        IReadOnlyList<T> results = [];
         var queryBox = new TextBox { Text = initialQuery, PlaceholderText = "Название игры" };
         var searchButton = new Button { Content = "Найти" };
         var list = new ListView { Height = 300, SelectionMode = ListViewSelectionMode.Single };
@@ -150,7 +155,7 @@ public sealed class DialogService(Window window) : IDialogService
         panel.Children.Add(status);
         panel.Children.Add(list);
 
-        var dialog = CreateDialog("Найти обложку: выберите игру");
+        var dialog = CreateDialog(title);
         dialog.Content = panel;
         dialog.PrimaryButtonText = "Далее";
         dialog.CloseButtonText = "Отмена";
@@ -173,9 +178,9 @@ public sealed class DialogService(Window window) : IDialogService
             try
             {
                 results = await search(queryBox.Text);
-                foreach (var game in results)
+                foreach (var result in results)
                 {
-                    list.Items.Add(game.Verified ? $"{game.DisplayName}  ✓" : game.DisplayName);
+                    list.Items.Add(display(result));
                 }
 
                 status.Text = results.Count == 0 ? "Ничего не найдено. Попробуйте другое название, например на английском." : string.Empty;
@@ -184,9 +189,9 @@ public sealed class DialogService(Window window) : IDialogService
                     list.SelectedIndex = 0;
                 }
             }
-            catch (SteamGridDbException ex)
+            catch (Exception ex) when (describeError(ex) is { } message)
             {
-                status.Text = ex.Message;
+                status.Text = message;
             }
             finally
             {
@@ -252,6 +257,44 @@ public sealed class DialogService(Window window) : IDialogService
         return (result == ContentDialogResult.Primary || _pickedByDoubleTap) && grid.SelectedIndex >= 0
             ? images[grid.SelectedIndex]
             : null;
+    }
+
+    public async Task ShowScreenshotsAsync(IReadOnlyList<Uri> images, int startIndex)
+    {
+        // Размер просмотра — по размеру окна, с полями.
+        var size = window.Content.XamlRoot.Size;
+        var width = Math.Max(480, size.Width * 0.85);
+        var height = Math.Max(270, Math.Min(width * 9 / 16, size.Height * 0.7));
+
+        var flip = new FlipView { Width = width, Height = height };
+        foreach (var uri in images)
+        {
+            flip.Items.Add(new Image
+            {
+                Source = new BitmapImage(uri),
+                Stretch = Microsoft.UI.Xaml.Media.Stretch.Uniform,
+            });
+        }
+
+        flip.SelectedIndex = Math.Clamp(startIndex, 0, Math.Max(0, images.Count - 1));
+
+        var counter = new TextBlock { HorizontalAlignment = HorizontalAlignment.Center };
+        void UpdateCounter() => counter.Text = $"{flip.SelectedIndex + 1} из {images.Count}";
+        flip.SelectionChanged += (_, _) => UpdateCounter();
+        UpdateCounter();
+
+        var panel = new StackPanel { Spacing = 8 };
+        panel.Children.Add(flip);
+        panel.Children.Add(counter);
+
+        var dialog = CreateDialog("Скриншоты");
+        // Стандартная ширина ContentDialog слишком мала для скриншотов.
+        dialog.Resources["ContentDialogMaxWidth"] = width + 100;
+        dialog.Resources["ContentDialogMaxHeight"] = height + 250;
+        dialog.Content = panel;
+        dialog.CloseButtonText = "Закрыть";
+        dialog.DefaultButton = ContentDialogButton.Close;
+        await dialog.ShowAsync();
     }
 
     private bool _pickedByDoubleTap;

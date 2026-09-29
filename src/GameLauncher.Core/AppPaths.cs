@@ -20,6 +20,9 @@ public static class AppPaths
     /// <summary>Кэш обложек и баннеров.</summary>
     public static string ArtworkDirectory => Path.Combine(DataDirectory, "artwork");
 
+    /// <summary>Описания игр из Steam.</summary>
+    public static string GameDetailsDirectory => Path.Combine(DataDirectory, "info");
+
     /// <summary>Зашифрованный (DPAPI) API-ключ SteamGridDB.</summary>
     public static string SteamGridDbKeyPath => Path.Combine(DataDirectory, "steamgriddb.key");
 

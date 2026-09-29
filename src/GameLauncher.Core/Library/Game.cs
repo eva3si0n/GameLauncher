@@ -23,4 +23,7 @@ public sealed class Game
 
     /// <summary>Имя файла баннера в кэше картинок; null — баннера нет.</summary>
     public string? HeroFile { get; set; }
+
+    /// <summary>Steam AppID, с которым связано описание игры; null — не связано.</summary>
+    public int? SteamAppId { get; set; }
 }

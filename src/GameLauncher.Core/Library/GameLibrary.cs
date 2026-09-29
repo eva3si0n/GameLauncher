@@ -103,6 +103,14 @@ public sealed class GameLibrary
         SaveOrRollback(() => (game.GridFile, game.HeroFile) = (oldGrid, oldHero));
     }
 
+    public void SetSteamAppId(Guid id, int? steamAppId)
+    {
+        var game = Find(id);
+        var old = game.SteamAppId;
+        game.SteamAppId = steamAppId;
+        SaveOrRollback(() => game.SteamAppId = old);
+    }
+
     private void SaveOrRollback(Action rollback)
     {
         try
