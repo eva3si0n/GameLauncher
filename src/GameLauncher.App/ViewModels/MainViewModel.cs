@@ -170,7 +170,10 @@ public sealed class MainViewModel : ObservableObject
         {
             if (!await TryLoadDetailsAsync(item, appId.Value))
             {
-                await _dialogs.ShowMessageAsync("Описание не найдено", "Steam не отдал данных по этой игре. Попробуйте выбрать другую.");
+                await _dialogs.ShowMessageAsync(
+                    "Описание не найдено",
+                    $"Steam не отдал данных по игре с AppID {appId} (проверены витрины США и России). "
+                    + "Возможно, игра снята с продажи или ещё не вышла. Попробуйте выбрать другую.");
             }
         }
         catch (SteamStoreException ex)

@@ -34,6 +34,7 @@ public sealed class SteamStoreClientTests
         Assert.Equal("/api/appdetails", uri.AbsolutePath);
         Assert.Contains("appids=292030", uri.Query);
         Assert.Contains("l=russian", uri.Query);
+        Assert.Contains("cc=us", uri.Query);
         Assert.NotNull(details);
         Assert.Equal(292030, details.SteamAppId);
         Assert.Equal("Ведьмак 3: Дикая Охота", details.SteamName);
@@ -45,6 +46,19 @@ public sealed class SteamStoreClientTests
         Assert.Equal("18 мая. 2015 г.", details.ReleaseDate);
         Assert.Equal(new Screenshot(new Uri("https://cdn.steam/ss1.600x338.jpg"), new Uri("https://cdn.steam/ss1.1920x1080.jpg")), Assert.Single(details.Screenshots));
         Assert.Equal(Now, details.FetchedAt);
+    }
+
+    [Fact]
+    public async Task GetDetails_NotSoldInUs_FallsBackToRussianStore()
+    {
+        var (client, handler) = Create(request => request.RequestUri!.Query.Contains("cc=us")
+            ? FakeHttpHandler.Json("""{"5":{"success":false}}""")
+            : FakeHttpHandler.Json("""{"5":{"success":true,"data":{"name":"Только в РФ","short_description":"Описание"}}}"""));
+
+        var details = await client.GetDetailsAsync(5, TestContext.Current.CancellationToken);
+
+        Assert.Equal("Только в РФ", details?.SteamName);
+        Assert.Equal(["cc=us", "cc=ru"], handler.Requests.Select(r => r.RequestUri!.Query.Contains("cc=us") ? "cc=us" : "cc=ru"));
     }
 
     [Theory]
@@ -71,7 +85,9 @@ public sealed class SteamStoreClientTests
 
         var apps = await client.SearchAsync(" portal 2 ", TestContext.Current.CancellationToken);
 
-        Assert.Contains("term=portal%202", Assert.Single(handler.Requests).RequestUri!.Query);
+        var query = Assert.Single(handler.Requests).RequestUri!.Query;
+        Assert.Contains("term=portal%202", query);
+        Assert.Contains("cc=us", query);
         Assert.Equal([new SteamStoreApp(620, "Portal 2"), new SteamStoreApp(1, "Без типа")], apps);
     }
 

@@ -23,11 +23,31 @@ public sealed class SteamStoreClient(HttpClient http, TimeProvider? time = null)
 
     private readonly TimeProvider _time = time ?? TimeProvider.System;
 
-    /// <summary>Описание игры на русском. Null — Steam не знает такой AppID или не отдаёт по нему данных.</summary>
+    /// <summary>
+    /// Витрины, из которых берём описание, по порядку. Регион влияет только на цену и доступность:
+    /// для игр, не продающихся в России, appdetails с cc=ru отвечает success=false, поэтому сначала — США.
+    /// Язык описания задаётся отдельно (l=russian) и от региона не зависит.
+    /// </summary>
+    private static readonly string[] StoreRegions = ["us", "ru"];
+
+    /// <summary>Описание игры на русском. Null — Steam не отдаёт данных по этому AppID ни в одном регионе.</summary>
     public async Task<GameDetails?> GetDetailsAsync(int appId, CancellationToken cancellationToken = default)
     {
+        foreach (var region in StoreRegions)
+        {
+            if (await GetDetailsAsync(appId, region, cancellationToken) is { } details)
+            {
+                return details;
+            }
+        }
+
+        return null;
+    }
+
+    private async Task<GameDetails?> GetDetailsAsync(int appId, string region, CancellationToken cancellationToken)
+    {
         var response = await GetAsync<Dictionary<string, AppDetailsEnvelope>>(
-            $"appdetails?appids={appId}&l=russian&cc=ru", cancellationToken);
+            $"appdetails?appids={appId}&l=russian&cc={region}", cancellationToken);
         if (response is null
             || !response.TryGetValue(appId.ToString(System.Globalization.CultureInfo.InvariantCulture), out var envelope)
             || !envelope.Success
@@ -60,7 +80,7 @@ public sealed class SteamStoreClient(HttpClient http, TimeProvider? time = null)
         ArgumentException.ThrowIfNullOrWhiteSpace(term);
 
         var response = await GetAsync<SearchResponse>(
-            $"storesearch/?term={Uri.EscapeDataString(term.Trim())}&l=russian&cc=ru", cancellationToken);
+            $"storesearch/?term={Uri.EscapeDataString(term.Trim())}&l=russian&cc=us", cancellationToken);
         return response?.Items?
             .Where(i => i.Type is null or "app")
             .Select(i => new SteamStoreApp(i.Id, i.Name ?? ""))
