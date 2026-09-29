@@ -6,6 +6,7 @@ using GameLauncher.App.Services;
 using GameLauncher.Core;
 using GameLauncher.Core.Artwork;
 using GameLauncher.Core.Backup;
+using GameLauncher.Core.Library;
 using GameLauncher.Core.Settings;
 using GameLauncher.Core.Startup;
 
@@ -75,6 +76,23 @@ public sealed class SettingsViewModel : ObservableObject
             Save();
             OnPropertyChanged();
             ThemeChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    /// <summary>Порядок карточек в библиотеке (выбирается на главном экране, запоминается).</summary>
+    public LibrarySortMode LibrarySort
+    {
+        get => _settings.LibrarySort;
+        set
+        {
+            if (value == _settings.LibrarySort || !Enum.IsDefined(value))
+            {
+                return;
+            }
+
+            _settings.LibrarySort = value;
+            Save();
+            OnPropertyChanged();
         }
     }
 

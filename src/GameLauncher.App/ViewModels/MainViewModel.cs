@@ -57,7 +57,7 @@ public sealed class MainViewModel : ObservableObject
         _playTime.Changed += (_, _) => RefreshPlayTime();
 
         Games = new ObservableCollection<GameItemViewModel>(library.Games.Select(CreateItem));
-        VisibleGames = new ObservableCollection<GameItemViewModel>(Games);
+        VisibleGames = new ObservableCollection<GameItemViewModel>(LibrarySort.Sort(Games, g => g.Game, settings.LibrarySort));
         Games.CollectionChanged += (_, _) =>
         {
             RebuildVisibleGames();
@@ -146,7 +146,7 @@ public sealed class MainViewModel : ObservableObject
 
     // ---------- Поиск ----------
 
-    /// <summary>Игры, подходящие под поиск, в порядке библиотеки.</summary>
+    /// <summary>Игры, подходящие под поиск, в выбранном порядке.</summary>
     public ObservableCollection<GameItemViewModel> VisibleGames { get; }
 
     public string SearchText
@@ -163,9 +163,26 @@ public sealed class MainViewModel : ObservableObject
 
     public bool IsNoSearchResultsVisible => IsLibraryVisible && Games.Count > 0 && VisibleGames.Count == 0;
 
+    /// <summary>Индекс в списке сортировки: «Недавние / По времени в игре / По названию / По дате добавления».</summary>
+    public int SortIndex
+    {
+        get => (int)Settings.LibrarySort;
+        set
+        {
+            if (value < 0 || value == SortIndex || !Enum.IsDefined((LibrarySortMode)value))
+            {
+                return;
+            }
+
+            Settings.LibrarySort = (LibrarySortMode)value;
+            OnPropertyChanged();
+            RebuildVisibleGames();
+        }
+    }
+
     private void RebuildVisibleGames()
     {
-        var matching = Games.Where(g => LibrarySearch.Matches(g.Name, _searchText)).ToList();
+        var matching = LibrarySort.Sort(Games.Where(g => LibrarySearch.Matches(g.Name, _searchText)), g => g.Game, Settings.LibrarySort).ToList();
         if (!matching.SequenceEqual(VisibleGames))
         {
             VisibleGames.Clear();
@@ -203,6 +220,12 @@ public sealed class MainViewModel : ObservableObject
         {
             item.State = _playTime.GetState(item.Id);
             item.Refresh();
+        }
+
+        // Время и дата последнего запуска изменились — порядок «Недавние» и «По времени» мог сдвинуться.
+        if (Settings.LibrarySort is LibrarySortMode.LastPlayed or LibrarySortMode.PlayTime)
+        {
+            RebuildVisibleGames();
         }
     }
 

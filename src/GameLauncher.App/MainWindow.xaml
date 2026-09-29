@@ -40,6 +40,17 @@
                 Style="{StaticResource TitleTextBlockStyle}"
                 Text="Библиотека" />
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+            <ComboBox
+                MinWidth="200"
+                VerticalAlignment="Center"
+                AutomationProperties.Name="Сортировка"
+                SelectedIndex="{x:Bind ViewModel.SortIndex, Mode=TwoWay}"
+                ToolTipService.ToolTip="Сортировка">
+                <ComboBoxItem Content="Недавние" />
+                <ComboBoxItem Content="По времени в игре" />
+                <ComboBoxItem Content="По названию" />
+                <ComboBoxItem Content="По дате добавления" />
+            </ComboBox>
             <AutoSuggestBox
                 x:Name="SearchBox"
                 AutomationProperties.Name="Поиск по библиотеке"
