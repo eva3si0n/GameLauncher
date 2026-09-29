@@ -18,9 +18,20 @@ public interface IDialogService
     /// <summary>Ввод API-ключа SteamGridDB. <paramref name="validate"/> возвращает текст ошибки или null.</summary>
     Task<ApiKeyDialogResult> EditApiKeyAsync(bool hasKey, Func<string, Task<string?>> validate);
 
-    /// <summary>Поиск игры в SteamGridDB. Null — отмена.</summary>
-    Task<SteamGridDbGame?> PickSteamGridDbGameAsync(
-        string initialQuery, Func<string, Task<IReadOnlyList<SteamGridDbGame>>> search);
+    /// <summary>
+    /// Диалог поиска с выбором результата. Ошибки <paramref name="search"/>, для которых
+    /// <paramref name="describeError"/> возвращает текст, показываются в диалоге. Null — отмена.
+    /// </summary>
+    Task<T?> PickFromSearchAsync<T>(
+        string title,
+        string initialQuery,
+        Func<string, Task<IReadOnlyList<T>>> search,
+        Func<T, string> display,
+        Func<Exception, string?> describeError)
+        where T : class;
+
+    /// <summary>Просмотр скриншотов в полном размере, начиная с <paramref name="startIndex"/>.</summary>
+    Task ShowScreenshotsAsync(IReadOnlyList<Uri> images, int startIndex);
 
     /// <summary>Выбор обложки из вариантов. Null — отмена.</summary>
     Task<SteamGridDbImage?> PickImageAsync(string title, IReadOnlyList<SteamGridDbImage> images);

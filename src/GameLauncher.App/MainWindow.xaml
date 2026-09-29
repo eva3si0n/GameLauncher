@@ -235,7 +235,87 @@
                         TextWrapping="Wrap" />
                 </Grid>
 
+                <!-- Описание из Steam -->
+                <StackPanel
+                    Margin="24,32,24,0"
+                    Spacing="12"
+                    Visibility="{x:Bind ViewModel.SelectedGame.HasDetails, Mode=OneWay, FallbackValue=Collapsed}">
+                    <TextBlock Style="{StaticResource SubtitleTextBlockStyle}" Text="Об игре" />
+                    <TextBlock
+                        IsTextSelectionEnabled="True"
+                        Text="{x:Bind ViewModel.SelectedGame.ShortDescription, Mode=OneWay}"
+                        TextWrapping="Wrap" />
+                    <Grid ColumnSpacing="48" RowSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="Жанры" />
+                        <TextBlock Grid.Column="1" Text="{x:Bind ViewModel.SelectedGame.GenresText, Mode=OneWay}" TextWrapping="Wrap" />
+                        <TextBlock Grid.Row="1" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="Разработчик" />
+                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{x:Bind ViewModel.SelectedGame.DevelopersText, Mode=OneWay}" TextWrapping="Wrap" />
+                        <TextBlock Grid.Row="2" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="Издатель" />
+                        <TextBlock Grid.Row="2" Grid.Column="1" Text="{x:Bind ViewModel.SelectedGame.PublishersText, Mode=OneWay}" TextWrapping="Wrap" />
+                        <TextBlock Grid.Row="3" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="Дата выхода" />
+                        <TextBlock Grid.Row="3" Grid.Column="1" Text="{x:Bind ViewModel.SelectedGame.SteamReleaseDate, Mode=OneWay}" />
+                    </Grid>
+
+                    <GridView
+                        IsItemClickEnabled="True"
+                        ItemClick="OnScreenshotClick"
+                        ItemsSource="{x:Bind ViewModel.SelectedGame.Screenshots, Mode=OneWay}"
+                        SelectionMode="None"
+                        Visibility="{x:Bind ViewModel.SelectedGame.HasScreenshots, Mode=OneWay, FallbackValue=Collapsed}">
+                        <GridView.ItemTemplate>
+                            <DataTemplate x:DataType="vm:ScreenshotViewModel">
+                                <Border
+                                    Width="240"
+                                    Height="135"
+                                    Background="{ThemeResource LayerFillColorDefaultBrush}"
+                                    CornerRadius="4">
+                                    <Image Source="{x:Bind Thumbnail}" Stretch="UniformToFill" />
+                                </Border>
+                            </DataTemplate>
+                        </GridView.ItemTemplate>
+                    </GridView>
+
+                    <Expander
+                        HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Stretch"
+                        Header="Подробнее"
+                        Visibility="{x:Bind ViewModel.SelectedGame.HasAbout, Mode=OneWay, FallbackValue=Collapsed}">
+                        <TextBlock
+                            IsTextSelectionEnabled="True"
+                            Text="{x:Bind ViewModel.SelectedGame.About, Mode=OneWay}"
+                            TextWrapping="Wrap" />
+                    </Expander>
+
+                    <TextBlock
+                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Text="{x:Bind ViewModel.SelectedGame.DetailsSourceText, Mode=OneWay}"
+                        TextWrapping="Wrap" />
+                </StackPanel>
+
+                <TextBlock
+                    Margin="24,32,24,0"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Text="Описания нет. Нажмите «Найти описание в Steam…» — или найдите обложку: описание подтянется вместе с ней, если игра есть в Steam."
+                    TextWrapping="Wrap"
+                    Visibility="{x:Bind ViewModel.SelectedGame.HasNoDetails, Mode=OneWay, FallbackValue=Collapsed}" />
+
                 <StackPanel Margin="24,24,24,0" Orientation="Horizontal" Spacing="8">
+                    <Button Command="{x:Bind ViewModel.SelectedGame.FindDetailsCommand, Mode=OneWay}" Content="Найти описание в Steam…" />
+                    <Button Command="{x:Bind ViewModel.SelectedGame.RefreshDetailsCommand, Mode=OneWay}" Content="Обновить описание" />
+                </StackPanel>
+
+                <StackPanel Margin="24,8,24,0" Orientation="Horizontal" Spacing="8">
                     <Button Command="{x:Bind ViewModel.SelectedGame.OpenFolderCommand, Mode=OneWay}" Content="Открыть папку" />
                     <Button Command="{x:Bind ViewModel.SelectedGame.FindCoverCommand, Mode=OneWay}" Content="Найти обложку…" />
                     <Button Command="{x:Bind ViewModel.SelectedGame.RemoveCoverCommand, Mode=OneWay}" Content="Убрать обложку" />

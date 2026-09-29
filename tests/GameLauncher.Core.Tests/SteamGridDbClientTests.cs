@@ -115,4 +115,21 @@ public sealed class SteamGridDbClientTests
 
         await Assert.ThrowsAsync<SteamGridDbException>(() => client.SearchGamesAsync("x", TestContext.Current.CancellationToken));
     }
+
+    [Theory]
+    [InlineData("""{"success":true,"data":{"id":5254,"name":"W3","external_platform_data":{"steam":[{"id":"292030","name":"W3"}]}}}""", 292030)]
+    [InlineData("""{"success":true,"data":{"id":5254,"name":"W3","external_platform_data":{"steam":[{"id":292030}]}}}""", 292030)]
+    [InlineData("""{"success":true,"data":{"id":5254,"name":"W3","external_platform_data":{"gog":[{"id":"1"}]}}}""", null)]
+    [InlineData("""{"success":true,"data":{"id":5254,"name":"W3"}}""", null)]
+    public async Task GetSteamAppId_ReadsPlatformData(string json, int? expected)
+    {
+        var (client, handler) = Create(_ => FakeHttpHandler.Json(json));
+
+        var appId = await client.GetSteamAppIdAsync(5254, TestContext.Current.CancellationToken);
+
+        var uri = Assert.Single(handler.Requests).RequestUri!;
+        Assert.Equal("/api/v2/games/id/5254", uri.AbsolutePath);
+        Assert.Equal("?platformdata=steam", uri.Query);
+        Assert.Equal(expected, appId);
+    }
 }

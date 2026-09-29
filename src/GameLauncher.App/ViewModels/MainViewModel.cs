@@ -5,6 +5,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GameLauncher.App.Services;
 using GameLauncher.Core.Artwork;
+using GameLauncher.Core.GameInfo;
 using GameLauncher.Core.Library;
 
 namespace GameLauncher.App.ViewModels;
@@ -22,6 +23,8 @@ public sealed class MainViewModel : ObservableObject
     private readonly ISecretStore _keyStore;
     private readonly HttpClient _http;
     private readonly SteamGridDbClient _steamGridDb;
+    private readonly SteamStoreClient _steamStore;
+    private readonly GameDetailsStore _detailsStore;
     private string? _apiKey;
     private GameItemViewModel? _selectedGame;
 
@@ -31,6 +34,7 @@ public sealed class MainViewModel : ObservableObject
         PlayTimeMonitor playTime,
         ArtworkCache artwork,
         ISecretStore keyStore,
+        GameDetailsStore detailsStore,
         HttpClient http,
         string? corruptBackupPath)
     {
@@ -43,6 +47,8 @@ public sealed class MainViewModel : ObservableObject
         _corruptBackupPath = corruptBackupPath;
         _apiKey = keyStore.Load();
         _steamGridDb = new SteamGridDbClient(http, () => _apiKey);
+        _steamStore = new SteamStoreClient(http);
+        _detailsStore = detailsStore;
         _playTime.Changed += (_, _) => RefreshPlayTime();
 
         Games = new ObservableCollection<GameItemViewModel>(library.Games.Select(CreateItem));
@@ -79,9 +85,15 @@ public sealed class MainViewModel : ObservableObject
 
     public async Task OpenDetailsAsync(GameItemViewModel item)
     {
+        item.Details = _detailsStore.Load(item.Id);
         SelectedGame = item;
         await item.LoadHeroAsync(_artwork);
     }
+
+    public Task ShowScreenshotAsync(ScreenshotViewModel screenshot) =>
+        SelectedGame is { } game
+            ? _dialogs.ShowScreenshotsAsync(game.Screenshots.Select(s => s.Screenshot.Full).ToList(), screenshot.Index)
+            : Task.CompletedTask;
 
     private void CloseDetails()
     {
@@ -126,7 +138,68 @@ public sealed class MainViewModel : ObservableObject
     }
 
     private GameItemViewModel CreateItem(Game game) =>
-        new(game, PlayAsync, RenameAsync, DeleteAsync, FindCoverAsync, RemoveCoverAsync);
+        new(game, PlayAsync, RenameAsync, DeleteAsync, FindCoverAsync, RemoveCoverAsync, FetchDetailsAsync);
+
+    private static string? DescribeOnlineError(Exception ex) =>
+        ex is SteamGridDbException or SteamStoreException ? ex.Message : null;
+
+    /// <summary>
+    /// Загрузить описание из Steam. <paramref name="search"/> = true — выбрать игру в Steam вручную,
+    /// иначе — обновить по уже известному AppID.
+    /// </summary>
+    private async Task FetchDetailsAsync(GameItemViewModel item, bool search)
+    {
+        var appId = item.Game.SteamAppId;
+        if (search || appId is null)
+        {
+            var app = await _dialogs.PickFromSearchAsync(
+                "Описание из Steam: выберите игру",
+                item.Name,
+                query => _steamStore.SearchAsync(query),
+                a => a.Name,
+                DescribeOnlineError);
+            if (app is null)
+            {
+                return;
+            }
+
+            appId = app.AppId;
+        }
+
+        try
+        {
+            if (!await TryLoadDetailsAsync(item, appId.Value))
+            {
+                await _dialogs.ShowMessageAsync(
+                    "Описание не найдено",
+                    $"Steam не отдал данных по игре с AppID {appId} (проверены витрины Турции, США и России). "
+                    + "Возможно, игра снята с продажи или ещё не вышла. Попробуйте выбрать другую.");
+            }
+        }
+        catch (SteamStoreException ex)
+        {
+            await _dialogs.ShowMessageAsync("Steam", ex.Message);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            await _dialogs.ShowMessageAsync("Не удалось сохранить описание", ex.Message);
+        }
+    }
+
+    /// <summary>Скачивает описание по AppID и сохраняет. False — Steam не отдал данных.</summary>
+    private async Task<bool> TryLoadDetailsAsync(GameItemViewModel item, int appId)
+    {
+        var details = await _steamStore.GetDetailsAsync(appId);
+        if (details is null)
+        {
+            return false;
+        }
+
+        _detailsStore.Save(item.Id, details);
+        _library.SetSteamAppId(item.Id, appId);
+        item.Details = details;
+        return true;
+    }
 
     /// <summary>Возвращает true, если после диалога ключ есть.</summary>
     private async Task<bool> EditApiKeyAsync()
@@ -176,7 +249,12 @@ public sealed class MainViewModel : ObservableObject
             return;
         }
 
-        var sgdbGame = await _dialogs.PickSteamGridDbGameAsync(item.Name, query => _steamGridDb.SearchGamesAsync(query));
+        var sgdbGame = await _dialogs.PickFromSearchAsync(
+            "Найти обложку: выберите игру",
+            item.Name,
+            query => _steamGridDb.SearchGamesAsync(query),
+            g => g.Verified ? $"{g.DisplayName}  ✓" : g.DisplayName,
+            DescribeOnlineError);
         if (sgdbGame is null)
         {
             return;
@@ -225,6 +303,22 @@ public sealed class MainViewModel : ObservableObject
         }
 
         await item.LoadImagesAsync(_artwork);
+
+        // Заодно подтягиваем описание из Steam, если его ещё нет. Это необязательно: ошибки не показываем,
+        // описание всегда можно загрузить вручную на странице игры.
+        if (item.Game.SteamAppId is null)
+        {
+            try
+            {
+                if (await _steamGridDb.GetSteamAppIdAsync(sgdbGame.Id) is { } appId)
+                {
+                    await TryLoadDetailsAsync(item, appId);
+                }
+            }
+            catch (Exception ex) when (ex is SteamGridDbException or SteamStoreException or IOException or UnauthorizedAccessException)
+            {
+            }
+        }
     }
 
     private async Task RemoveCoverAsync(GameItemViewModel item)
@@ -343,10 +437,11 @@ public sealed class MainViewModel : ObservableObject
         try
         {
             _artwork.Delete(item.Id);
+            _detailsStore.Delete(item.Id);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            // Картинки в кэше не мешают работе — не беспокоим пользователя.
+            // Картинки и описания в кэше не мешают работе — не беспокоим пользователя.
         }
     }
 }
