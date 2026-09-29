@@ -21,7 +21,7 @@
 - App собирается только в CI (`windows-latest`, `.github/workflows/ci.yml`): XAML-компилятор WinUI работает только на Windows.
 - Локально на Linux: `dotnet build src/GameLauncher.Core` и `dotnet test --project tests/GameLauncher.Core.Tests`.
 - Артефакт CI — `GameLauncher-win-x64` (zip папки publish), хранится 7 дней — только для проверки сборки PR.
-- Релиз — push тега `vX.Y.Z` (`.github/workflows/release.yml`): версия берётся из тега, zip публикуется в GitHub Releases.
+- Релиз — `.github/workflows/release.yml`: push тега `vX.Y.Z` или ручной запуск с версией `X.Y.Z` (тег создаётся сам); zip публикуется в GitHub Releases. Push тегов из облачной сессии Claude не проходит — используйте ручной запуск.
 
 ## Секреты
 - Секреты (API-ключ SteamGridDB и любые другие) никогда не коммитить — ни в код, ни в конфиги, ни в тесты.

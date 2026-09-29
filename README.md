@@ -22,7 +22,8 @@
 
 ## Выпуск версии
 
-Push тега вида `v1.2.3` запускает `.github/workflows/release.yml`: сборка, тесты, смоук-запуск и GitHub Release с zip.
+`.github/workflows/release.yml`: сборка, тесты, смоук-запуск и GitHub Release с zip. Запуск — push тега вида `v1.2.3`
+или вручную: Actions → Release → Run workflow, указать версию `1.2.3` (тег создастся сам).
 
 ## Сборка
 
