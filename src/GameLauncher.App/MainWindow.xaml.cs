@@ -6,7 +6,9 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media.Imaging;
+using Windows.ApplicationModel.DataTransfer;
 using Windows.Graphics;
+using Windows.Storage;
 
 namespace GameLauncher.App;
 
@@ -212,6 +214,42 @@ public sealed partial class MainWindow : Window
         {
             await ViewModel.EnsureImagesLoadedAsync(item);
         }
+    }
+
+    /// <summary>Над окном тащат файлы: принимаем, только пока открыта библиотека.</summary>
+    private void OnDragOver(object sender, DragEventArgs e)
+    {
+        if (ViewModel.IsLibraryVisible && e.DataView.Contains(StandardDataFormats.StorageItems))
+        {
+            e.AcceptedOperation = DataPackageOperation.Copy;
+            e.DragUIOverride.Caption = "Добавить в библиотеку";
+        }
+        else
+        {
+            e.AcceptedOperation = DataPackageOperation.None;
+        }
+    }
+
+    private async void OnDrop(object sender, DragEventArgs e)
+    {
+        if (!ViewModel.IsLibraryVisible || !e.DataView.Contains(StandardDataFormats.StorageItems))
+        {
+            return;
+        }
+
+        // Список файлов забираем под отсрочкой: после выхода из обработчика данные перетаскивания недоступны.
+        IReadOnlyList<IStorageItem> items;
+        var deferral = e.GetDeferral();
+        try
+        {
+            items = await e.DataView.GetStorageItemsAsync();
+        }
+        finally
+        {
+            deferral.Complete();
+        }
+
+        await ViewModel.AddDroppedAsync(items.Select(i => i.Path).Where(p => !string.IsNullOrEmpty(p)).ToList());
     }
 
     private async void OnTopGameClick(object sender, ItemClickEventArgs e)

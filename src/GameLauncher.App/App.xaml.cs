@@ -104,6 +104,7 @@ public partial class App : Application, IAppLifecycle
                 new GameRemover(library, artwork, detailsStore, history),
                 settings,
                 history,
+                new ShellShortcutResolver(),
                 store.CorruptBackupPath);
         });
 
