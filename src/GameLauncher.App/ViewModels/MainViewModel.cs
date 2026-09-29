@@ -172,7 +172,7 @@ public sealed class MainViewModel : ObservableObject
             {
                 await _dialogs.ShowMessageAsync(
                     "Описание не найдено",
-                    $"Steam не отдал данных по игре с AppID {appId} (проверены витрины США и России). "
+                    $"Steam не отдал данных по игре с AppID {appId} (проверены витрины Турции, США и России). "
                     + "Возможно, игра снята с продажи или ещё не вышла. Попробуйте выбрать другую.");
             }
         }

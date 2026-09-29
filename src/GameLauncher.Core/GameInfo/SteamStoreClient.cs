@@ -25,10 +25,11 @@ public sealed class SteamStoreClient(HttpClient http, TimeProvider? time = null)
 
     /// <summary>
     /// Витрины, из которых берём описание, по порядку. Регион влияет только на цену и доступность:
-    /// для игр, не продающихся в России, appdetails с cc=ru отвечает success=false, поэтому сначала — США.
+    /// для игр, не продающихся в регионе, appdetails отвечает success=false (так, например, с cc=ru).
+    /// Основная — Турция (регион Steam-аккаунта владельца), затем США и Россия как запасные.
     /// Язык описания задаётся отдельно (l=russian) и от региона не зависит.
     /// </summary>
-    private static readonly string[] StoreRegions = ["us", "ru"];
+    private static readonly string[] StoreRegions = ["tr", "us", "ru"];
 
     /// <summary>Описание игры на русском. Null — Steam не отдаёт данных по этому AppID ни в одном регионе.</summary>
     public async Task<GameDetails?> GetDetailsAsync(int appId, CancellationToken cancellationToken = default)
@@ -80,7 +81,7 @@ public sealed class SteamStoreClient(HttpClient http, TimeProvider? time = null)
         ArgumentException.ThrowIfNullOrWhiteSpace(term);
 
         var response = await GetAsync<SearchResponse>(
-            $"storesearch/?term={Uri.EscapeDataString(term.Trim())}&l=russian&cc=us", cancellationToken);
+            $"storesearch/?term={Uri.EscapeDataString(term.Trim())}&l=russian&cc={StoreRegions[0]}", cancellationToken);
         return response?.Items?
             .Where(i => i.Type is null or "app")
             .Select(i => new SteamStoreApp(i.Id, i.Name ?? ""))

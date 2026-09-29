@@ -34,7 +34,7 @@ public sealed class SteamStoreClientTests
         Assert.Equal("/api/appdetails", uri.AbsolutePath);
         Assert.Contains("appids=292030", uri.Query);
         Assert.Contains("l=russian", uri.Query);
-        Assert.Contains("cc=us", uri.Query);
+        Assert.Contains("cc=tr", uri.Query);
         Assert.NotNull(details);
         Assert.Equal(292030, details.SteamAppId);
         Assert.Equal("Ведьмак 3: Дикая Охота", details.SteamName);
@@ -49,16 +49,26 @@ public sealed class SteamStoreClientTests
     }
 
     [Fact]
-    public async Task GetDetails_NotSoldInUs_FallsBackToRussianStore()
+    public async Task GetDetails_NotSoldInTurkey_FallsBackToUsThenRussia()
     {
-        var (client, handler) = Create(request => request.RequestUri!.Query.Contains("cc=us")
-            ? FakeHttpHandler.Json("""{"5":{"success":false}}""")
-            : FakeHttpHandler.Json("""{"5":{"success":true,"data":{"name":"Только в РФ","short_description":"Описание"}}}"""));
+        static string Region(HttpRequestMessage r) => System.Text.RegularExpressions.Regex.Match(r.RequestUri!.Query, "cc=([a-z]+)").Groups[1].Value;
+        var (client, handler) = Create(request => Region(request) == "ru"
+            ? FakeHttpHandler.Json("""{"5":{"success":true,"data":{"name":"Только в РФ","short_description":"Описание"}}}""")
+            : FakeHttpHandler.Json("""{"5":{"success":false}}"""));
 
         var details = await client.GetDetailsAsync(5, TestContext.Current.CancellationToken);
 
         Assert.Equal("Только в РФ", details?.SteamName);
-        Assert.Equal(["cc=us", "cc=ru"], handler.Requests.Select(r => r.RequestUri!.Query.Contains("cc=us") ? "cc=us" : "cc=ru"));
+        Assert.Equal(["tr", "us", "ru"], handler.Requests.Select(Region));
+    }
+
+    [Fact]
+    public async Task GetDetails_FoundInTurkey_DoesNotQueryOtherRegions()
+    {
+        var (client, handler) = Create(_ => FakeHttpHandler.Json("""{"5":{"success":true,"data":{"name":"Игра"}}}"""));
+
+        Assert.NotNull(await client.GetDetailsAsync(5, TestContext.Current.CancellationToken));
+        Assert.Single(handler.Requests);
     }
 
     [Theory]
@@ -87,7 +97,7 @@ public sealed class SteamStoreClientTests
 
         var query = Assert.Single(handler.Requests).RequestUri!.Query;
         Assert.Contains("term=portal%202", query);
-        Assert.Contains("cc=us", query);
+        Assert.Contains("cc=tr", query);
         Assert.Equal([new SteamStoreApp(620, "Portal 2"), new SteamStoreApp(1, "Без типа")], apps);
     }
 
