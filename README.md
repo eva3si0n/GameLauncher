@@ -13,10 +13,16 @@
 
 ## Установка
 
-Ставить ничего не нужно: скачайте zip из артефактов CI (вкладка Actions → последний успешный запуск → `GameLauncher-win-x64`),
-распакуйте в любую папку и запустите `GameLauncher.exe`. Приложение self-contained, требует Windows 11 x64.
+Ставить ничего не нужно: скачайте `GameLauncher-<версия>-win-x64.zip` со страницы
+[Releases](https://github.com/eva3si0n/GameLauncher/releases), распакуйте в любую папку и запустите `GameLauncher.exe`.
+Приложение self-contained, требует Windows 11 x64. Подписи нет — SmartScreen при первом запуске может предупредить
+(«Подробнее» → «Выполнить в любом случае»).
 
-Данные хранятся в `%LocalAppData%\GameLauncher`.
+Данные хранятся в `%LocalAppData%\GameLauncher` — при обновлении достаточно заменить папку с программой.
+
+## Выпуск версии
+
+Push тега вида `v1.2.3` запускает `.github/workflows/release.yml`: сборка, тесты, смоук-запуск и GitHub Release с zip.
 
 ## Сборка
 

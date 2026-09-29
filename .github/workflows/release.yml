@@ -1,0 +1,64 @@
+name: Release
+
+# Выпуск версии: push тега вида v1.2.3 → сборка, тесты, смоук-запуск → GitHub Release с zip.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write # создание релиза
+
+jobs:
+  release:
+    runs-on: windows-latest
+    env:
+      DOTNET_NOLOGO: true
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Version from tag
+        id: version
+        shell: pwsh
+        run: |
+          $version = '${{ github.ref_name }}'.TrimStart('v')
+          if ($version -notmatch '^\d+\.\d+\.\d+$') {
+            Write-Error "Тег '${{ github.ref_name }}' должен иметь вид v1.2.3"
+            exit 1
+          }
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Test
+        run: dotnet test --project tests/GameLauncher.Core.Tests/GameLauncher.Core.Tests.csproj -c Release
+
+      - name: Publish
+        run: dotnet publish src/GameLauncher.App/GameLauncher.App.csproj -c Release -r win-x64 -p:Version=${{ steps.version.outputs.version }} -o artifacts/GameLauncher
+
+      # Не выпускаем сборку, которая падает при старте.
+      - name: Smoke launch
+        shell: pwsh
+        run: |
+          $p = Start-Process -FilePath artifacts/GameLauncher/GameLauncher.exe -PassThru
+          if ($p.WaitForExit(20000)) {
+            Write-Error ("Приложение завершилось при старте, код 0x{0:X8}" -f $p.ExitCode)
+            exit 1
+          }
+          Stop-Process -Id $p.Id -Force
+
+      - name: Zip
+        shell: pwsh
+        run: Compress-Archive -Path artifacts/GameLauncher/* -DestinationPath "artifacts/GameLauncher-${{ steps.version.outputs.version }}-win-x64.zip"
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh release create "${{ github.ref_name }}"
+          "artifacts/GameLauncher-${{ steps.version.outputs.version }}-win-x64.zip"
+          --title "GameLauncher ${{ steps.version.outputs.version }}"
+          --generate-notes
+          --verify-tag

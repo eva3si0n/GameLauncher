@@ -21,7 +21,8 @@
 - App собирается только в CI (`windows-latest`, `.github/workflows/ci.yml`): XAML-компилятор WinUI работает только на Windows.
 - Локально на Linux: `dotnet build src/GameLauncher.Core` и `dotnet test --project tests/GameLauncher.Core.Tests`.
 - Артефакт CI — `GameLauncher-win-x64` (zip папки publish), хранится 7 дней — только для проверки сборки PR.
+- Релиз — push тега `vX.Y.Z` (`.github/workflows/release.yml`): версия берётся из тега, zip публикуется в GitHub Releases.
 
 ## Секреты
 - Секреты (API-ключ SteamGridDB и любые другие) никогда не коммитить — ни в код, ни в конфиги, ни в тесты.
-- Ключ SteamGridDB вводит пользователь (кнопка «SteamGridDB» в окне); хранится зашифрованным через DPAPI (CurrentUser) в `%LocalAppData%\GameLauncher\steamgriddb.key`.
+- Ключ SteamGridDB вводит пользователь (Настройки → «Изменить API-ключ…»); хранится зашифрованным через DPAPI (CurrentUser) в `%LocalAppData%\GameLauncher\steamgriddb.key`.
