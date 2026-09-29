@@ -25,7 +25,7 @@ public sealed partial class MainWindow : Window
         AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Tall;
 
         ApplyTheme();
-        ViewModel.ThemeChanged += (_, _) => ApplyTheme();
+        ViewModel.Settings.ThemeChanged += (_, _) => ApplyTheme();
         Root.ActualThemeChanged += (_, _) => ApplyCaptionButtonColors();
 
         RestorePlacement();
@@ -45,7 +45,7 @@ public sealed partial class MainWindow : Window
     private void RestorePlacement()
     {
         _normalBounds = CurrentBounds;
-        if (ViewModel.SavedWindowPlacement is not { } saved)
+        if (ViewModel.Settings.SavedWindowPlacement is not { } saved)
         {
             return;
         }
@@ -82,13 +82,13 @@ public sealed partial class MainWindow : Window
     {
         var state = PresenterState;
         var bounds = state == OverlappedPresenterState.Restored ? CurrentBounds : _normalBounds;
-        ViewModel.SaveWindowPlacement(new WindowPlacement(
+        ViewModel.Settings.SaveWindowPlacement(new WindowPlacement(
             bounds.X, bounds.Y, bounds.Width, bounds.Height, IsMaximized: state == OverlappedPresenterState.Maximized));
     }
 
     private void ApplyTheme()
     {
-        Root.RequestedTheme = ViewModel.Theme switch
+        Root.RequestedTheme = ViewModel.Settings.Theme switch
         {
             AppTheme.Light => ElementTheme.Light,
             AppTheme.Dark => ElementTheme.Dark,

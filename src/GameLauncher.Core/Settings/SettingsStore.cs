@@ -49,14 +49,6 @@ public sealed class SettingsStore(string filePath)
     public void Save(AppSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
-
-        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(filePath))!);
-        var tempPath = filePath + ".tmp";
-        using (var stream = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None))
-        {
-            JsonSerializer.Serialize(stream, settings, JsonOptions);
-        }
-
-        File.Move(tempPath, filePath, overwrite: true);
+        AtomicFile.Write(filePath, stream => JsonSerializer.Serialize(stream, settings, JsonOptions));
     }
 }

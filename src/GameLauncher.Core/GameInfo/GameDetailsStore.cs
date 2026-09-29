@@ -33,16 +33,7 @@ public sealed class GameDetailsStore(string directory)
     public void Save(Guid gameId, GameDetails details)
     {
         ArgumentNullException.ThrowIfNull(details);
-
-        System.IO.Directory.CreateDirectory(Directory);
-        var path = GetPath(gameId);
-        var tempPath = path + ".tmp";
-        using (var stream = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None))
-        {
-            JsonSerializer.Serialize(stream, details, JsonOptions);
-        }
-
-        File.Move(tempPath, path, overwrite: true);
+        AtomicFile.Write(GetPath(gameId), stream => JsonSerializer.Serialize(stream, details, JsonOptions));
     }
 
     public void Delete(Guid gameId) => File.Delete(GetPath(gameId));

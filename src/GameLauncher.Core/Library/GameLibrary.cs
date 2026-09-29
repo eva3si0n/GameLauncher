@@ -124,7 +124,10 @@ public sealed class GameLibrary
         }
     }
 
-    private Game Find(Guid id) =>
+    /// <summary>Игра по Id; KeyNotFoundException, если её нет (например, удалили).</summary>
+    public Game Get(Guid id) =>
         _data.Games.FirstOrDefault(g => g.Id == id)
         ?? throw new KeyNotFoundException($"Игра {id} не найдена.");
+
+    private Game Find(Guid id) => Get(id);
 }

@@ -379,7 +379,7 @@
 
                 <StackPanel Style="{StaticResource SettingsCardStyle}">
                     <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="Внешний вид" />
-                    <ComboBox MinWidth="240" Header="Тема" SelectedIndex="{x:Bind ViewModel.ThemeIndex, Mode=TwoWay}">
+                    <ComboBox MinWidth="240" Header="Тема" SelectedIndex="{x:Bind ViewModel.Settings.ThemeIndex, Mode=TwoWay}">
                         <ComboBoxItem Content="Как в системе" />
                         <ComboBoxItem Content="Светлая" />
                         <ComboBoxItem Content="Тёмная" />
@@ -388,8 +388,8 @@
 
                 <StackPanel Style="{StaticResource SettingsCardStyle}">
                     <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="Обложки: SteamGridDB" />
-                    <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{x:Bind ViewModel.ApiKeyStatusText, Mode=OneWay}" TextWrapping="Wrap" />
-                    <Button Command="{x:Bind ViewModel.EditApiKeyCommand}" Content="Изменить API-ключ…" />
+                    <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{x:Bind ViewModel.Settings.ApiKeyStatusText, Mode=OneWay}" TextWrapping="Wrap" />
+                    <Button Command="{x:Bind ViewModel.Settings.EditApiKeyCommand}" Content="Изменить API-ключ…" />
                 </StackPanel>
 
                 <StackPanel Style="{StaticResource SettingsCardStyle}">
@@ -397,8 +397,8 @@
                     <ComboBox
                         MinWidth="240"
                         Header="Основная витрина"
-                        ItemsSource="{x:Bind ViewModel.SteamRegionNames}"
-                        SelectedIndex="{x:Bind ViewModel.SteamRegionIndex, Mode=TwoWay}" />
+                        ItemsSource="{x:Bind ViewModel.Settings.SteamRegionNames}"
+                        SelectedIndex="{x:Bind ViewModel.Settings.SteamRegionIndex, Mode=TwoWay}" />
                     <TextBlock
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                         Text="Выберите регион своего Steam-аккаунта. Если игры нет на этой витрине, описание берётся с витрин США и России. Язык описаний — русский."
@@ -411,15 +411,15 @@
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                         Text="Библиотека, время в играх, обложки, описания и настройки хранятся здесь:"
                         TextWrapping="Wrap" />
-                    <TextBlock IsTextSelectionEnabled="True" Text="{x:Bind ViewModel.DataDirectory}" TextWrapping="Wrap" />
-                    <Button Command="{x:Bind ViewModel.OpenDataFolderCommand}" Content="Открыть папку данных" />
+                    <TextBlock IsTextSelectionEnabled="True" Text="{x:Bind ViewModel.Settings.DataDirectory}" TextWrapping="Wrap" />
+                    <Button Command="{x:Bind ViewModel.Settings.OpenDataFolderCommand}" Content="Открыть папку данных" />
                 </StackPanel>
 
                 <StackPanel Style="{StaticResource SettingsCardStyle}">
                     <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="О программе" />
                     <TextBlock>
                         <Run Text="GameLauncher" />
-                        <Run Text="{x:Bind ViewModel.AppVersion}" />
+                        <Run Text="{x:Bind ViewModel.Settings.AppVersion}" />
                     </TextBlock>
                 </StackPanel>
             </StackPanel>

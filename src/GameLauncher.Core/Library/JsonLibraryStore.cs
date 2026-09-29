@@ -49,17 +49,6 @@ public sealed class JsonLibraryStore(string filePath) : ILibraryStore
     public void Save(LibraryData data)
     {
         ArgumentNullException.ThrowIfNull(data);
-
-        var directory = Path.GetDirectoryName(Path.GetFullPath(FilePath))!;
-        Directory.CreateDirectory(directory);
-
-        var tempPath = FilePath + ".tmp";
-        using (var stream = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None))
-        {
-            JsonSerializer.Serialize(stream, data, JsonOptions);
-            stream.Flush(flushToDisk: true);
-        }
-
-        File.Move(tempPath, FilePath, overwrite: true);
+        AtomicFile.Write(FilePath, stream => JsonSerializer.Serialize(stream, data, JsonOptions));
     }
 }
