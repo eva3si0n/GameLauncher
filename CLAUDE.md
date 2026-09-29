@@ -17,11 +17,23 @@
 - `tests/GameLauncher.Core.Tests` — тесты Core.
 - Данные пользователя — JSON в `%LocalAppData%\GameLauncher`, запись атомарная (временный файл + замена).
 
+## Известные ловушки
+- `EnableMsixTooling=true` в `GameLauncher.App.csproj` обязателен и без MSIX: без него в publish не попадает `.pri` приложения, и оно падает при старте (`0xC000027B` в `Microsoft.UI.Xaml.dll`). Не удалять.
+- Путь процесса — только через `QueryFullProcessImageName` (`PROCESS_QUERY_LIMITED_INFORMATION`); `Process.MainModule` падает на повышенных/защищённых процессах.
+- Steam `appdetails` отвечает `success=false`, если игра не продаётся в регионе `cc`; поэтому витрины перебираются (основная из настроек → us → ru).
+- Смоук-запуск в CI (`Smoke launch`) не отключать: только он ловит падения при старте — XAML/ресурсы не проверяются ни компиляцией, ни тестами Core.
+
 ## Сборка и проверка
 - App собирается только в CI (`windows-latest`, `.github/workflows/ci.yml`): XAML-компилятор WinUI работает только на Windows.
 - Локально на Linux: `dotnet build src/GameLauncher.Core` и `dotnet test --project tests/GameLauncher.Core.Tests`.
+- Из облачной сессии Claude недоступны SteamGridDB и Steam Store (сетевая политика) — HTTP-клиенты тестируются на подставных ответах (`FakeHttpHandler`), реальную работу проверяет владелец на Windows 11. GUI в контейнере не запустить.
 - Артефакт CI — `GameLauncher-win-x64` (zip папки publish), хранится 7 дней — только для проверки сборки PR.
 - Релиз — `.github/workflows/release.yml`: push тега `vX.Y.Z` или ручной запуск с версией `X.Y.Z` (тег создаётся сам); zip публикуется в GitHub Releases. Push тегов из облачной сессии Claude не проходит — используйте ручной запуск.
+
+## Порядок работы
+- Каждое изменение — отдельный PR в `main`; после зелёного CI владелец проверяет артефакт на Windows 11.
+- Цепочку PR (каждый поверх предыдущего) мёржить по порядку обычным merge-коммитом, не squash — иначе следующие PR получат чужие изменения и конфликты. После мёржа — перевести следующий PR на `main`.
+- Перед отклонением от согласованного плана — спросить владельца.
 
 ## Секреты
 - Секреты (API-ключ SteamGridDB и любые другие) никогда не коммитить — ни в код, ни в конфиги, ни в тесты.
