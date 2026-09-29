@@ -4,7 +4,7 @@
 
 ## Стек
 - WinUI 3 + C#, .NET 10 (LTS). Preview/RC-версии .NET не использовать.
-- Windows App SDK 2.x: подключается только компонент `Microsoft.WindowsAppSDK.WinUI` (не метапакет — иначе в сборку попадают AI, Search, Widgets, ML; ~20 МБ). Нужен новый компонент SDK — добавить его пакет отдельно. MVVM — CommunityToolkit.Mvvm.
+- Windows App SDK 2.x: подключается только компонент `Microsoft.WindowsAppSDK.WinUI` (не метапакет — иначе в сборку попадают AI, Search, Widgets, ML; zip релиза больше на ~25 МБ). Нужен новый компонент SDK — добавить его пакет отдельно. MVVM — CommunityToolkit.Mvvm.
 - Распространение: unpackaged (`WindowsPackageType=None`), self-contained .NET и Windows App SDK, x64. Без MSIX и подписи.
 - Локализации: только русский и английский (`SatelliteResourceLanguages=en;ru`, .mui WinUI фильтруются в `GameLauncher.App.csproj`).
 - Целевая ОС — только Windows 11.
