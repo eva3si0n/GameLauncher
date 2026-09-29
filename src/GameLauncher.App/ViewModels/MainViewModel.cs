@@ -194,6 +194,15 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
+    /// <summary>Размер и положение окна с прошлого запуска; null — первый запуск.</summary>
+    public WindowPlacement? SavedWindowPlacement => _settings.Window;
+
+    public void SaveWindowPlacement(WindowPlacement placement)
+    {
+        _settings.Window = placement;
+        SaveSettings();
+    }
+
     public string ApiKeyStatusText => _apiKey is null ? "Ключ не задан — поиск обложек недоступен." : "Ключ сохранён (зашифрован DPAPI).";
 
     public string DataDirectory => AppPaths.DataDirectory;

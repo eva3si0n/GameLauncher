@@ -5,11 +5,15 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Windows.Graphics;
 
 namespace GameLauncher.App;
 
 public sealed partial class MainWindow : Window
 {
+    /// <summary>Последние размер и положение в обычном (не развёрнутом) состоянии.</summary>
+    private PixelRect _normalBounds;
+
     public MainWindow(Func<Window, MainViewModel> createViewModel)
     {
         ViewModel = createViewModel(this);
@@ -24,10 +28,63 @@ public sealed partial class MainWindow : Window
         ViewModel.ThemeChanged += (_, _) => ApplyTheme();
         Root.ActualThemeChanged += (_, _) => ApplyCaptionButtonColors();
 
+        RestorePlacement();
+        AppWindow.Changed += OnAppWindowChanged;
+        AppWindow.Closing += (_, _) => SavePlacement();
+
         Root.Loaded += async (_, _) => await ViewModel.OnLoadedAsync();
     }
 
     public MainViewModel ViewModel { get; }
+
+    private PixelRect CurrentBounds => new(AppWindow.Position.X, AppWindow.Position.Y, AppWindow.Size.Width, AppWindow.Size.Height);
+
+    private OverlappedPresenterState? PresenterState => (AppWindow.Presenter as OverlappedPresenter)?.State;
+
+    /// <summary>Размер и положение с прошлого запуска, вписанные в рабочую область монитора.</summary>
+    private void RestorePlacement()
+    {
+        _normalBounds = CurrentBounds;
+        if (ViewModel.SavedWindowPlacement is not { } saved)
+        {
+            return;
+        }
+
+        // Монитор, на котором было окно; если его больше нет — основной.
+        var display = DisplayArea.GetFromRect(new RectInt32(saved.X, saved.Y, saved.Width, saved.Height), DisplayAreaFallback.Primary);
+        var area = display.WorkArea;
+        var fitted = saved.FitInto(new PixelRect(area.X, area.Y, area.Width, area.Height));
+        AppWindow.MoveAndResize(new RectInt32(fitted.X, fitted.Y, fitted.Width, fitted.Height));
+        _normalBounds = fitted;
+
+        if (saved.IsMaximized)
+        {
+            // Разворачиваем после первого показа окна — так обычный размер остаётся запомненным для «Восстановить».
+            void MaximizeOnce(object sender, WindowActivatedEventArgs args)
+            {
+                Activated -= MaximizeOnce;
+                (AppWindow.Presenter as OverlappedPresenter)?.Maximize();
+            }
+
+            Activated += MaximizeOnce;
+        }
+    }
+
+    private void OnAppWindowChanged(AppWindow sender, AppWindowChangedEventArgs args)
+    {
+        if ((args.DidPositionChange || args.DidSizeChange) && PresenterState == OverlappedPresenterState.Restored)
+        {
+            _normalBounds = CurrentBounds;
+        }
+    }
+
+    private void SavePlacement()
+    {
+        var state = PresenterState;
+        var bounds = state == OverlappedPresenterState.Restored ? CurrentBounds : _normalBounds;
+        ViewModel.SaveWindowPlacement(new WindowPlacement(
+            bounds.X, bounds.Y, bounds.Width, bounds.Height, IsMaximized: state == OverlappedPresenterState.Maximized));
+    }
 
     private void ApplyTheme()
     {

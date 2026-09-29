@@ -55,4 +55,22 @@ public sealed class SettingsStoreTests : IDisposable
         Assert.Equal(AppTheme.Light, settings.Theme);
         Assert.Equal("tr", settings.SteamRegion);
     }
+
+    [Fact]
+    public void WindowPlacement_RoundTrips()
+    {
+        var store = new SettingsStore(SettingsPath);
+
+        store.Save(new AppSettings { Window = new WindowPlacement(10, 20, 1280, 800, true) });
+
+        Assert.Equal(new WindowPlacement(10, 20, 1280, 800, true), store.Load().Window);
+    }
+
+    [Fact]
+    public void WindowPlacement_WithZeroSize_IsDropped()
+    {
+        File.WriteAllText(SettingsPath, """{"window":{"x":0,"y":0,"width":0,"height":600,"isMaximized":false}}""");
+
+        Assert.Null(new SettingsStore(SettingsPath).Load().Window);
+    }
 }

@@ -28,6 +28,11 @@ public sealed class SettingsStore(string filePath)
                 settings.Theme = AppTheme.System;
             }
 
+            if (settings.Window is { Width: <= 0 } or { Height: <= 0 })
+            {
+                settings.Window = null;
+            }
+
             if (string.IsNullOrWhiteSpace(settings.SteamRegion))
             {
                 settings.SteamRegion = AppSettings.DefaultSteamRegion;

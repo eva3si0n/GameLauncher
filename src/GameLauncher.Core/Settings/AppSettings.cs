@@ -16,4 +16,7 @@ public sealed class AppSettings
 
     /// <summary>Основная витрина Steam для описаний (код страны: tr, us, ru…).</summary>
     public string SteamRegion { get; set; } = DefaultSteamRegion;
+
+    /// <summary>Размер и положение окна при последнем закрытии; null — ещё не сохранялись.</summary>
+    public WindowPlacement? Window { get; set; }
 }
