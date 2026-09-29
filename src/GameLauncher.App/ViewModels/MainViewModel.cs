@@ -60,15 +60,6 @@ public sealed class MainViewModel : ObservableObject
         _history = history;
         _corruptBackupPath = corruptBackupPath;
         Settings = settings;
-        // Идёт игра — запись истории обновляется раз в минуту; открытая страница игры видит это сразу.
-        _history.Changed += (_, _) =>
-        {
-            RefreshSelectedStats();
-            if (_isStatsOpen)
-            {
-                Stats.Refresh();
-            }
-        };
         _playTime.Changed += (_, _) => RefreshPlayTime();
 
         Games = new ObservableCollection<GameItemViewModel>(library.Games.Select(CreateItem));
@@ -80,6 +71,17 @@ public sealed class MainViewModel : ObservableObject
         };
 
         Stats = new StatsViewModel(history, () => Games);
+
+        // Подписка — после создания Stats: иначе анализ nullable видит обращение к ещё не присвоенному свойству.
+        // Идёт игра — запись истории обновляется раз в минуту; открытые страница игры и статистика видят это сразу.
+        _history.Changed += (_, _) =>
+        {
+            RefreshSelectedStats();
+            if (_isStatsOpen)
+            {
+                Stats.Refresh();
+            }
+        };
 
         AddGameCommand = new AsyncRelayCommand(AddGameAsync);
         OpenStatsCommand = new RelayCommand(() => IsStatsOpen = true);
