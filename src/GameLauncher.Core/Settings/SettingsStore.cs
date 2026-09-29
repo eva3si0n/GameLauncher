@@ -1,4 +1,5 @@
 using System.Text.Json;
+using GameLauncher.Core.Library;
 using System.Text.Json.Serialization;
 
 namespace GameLauncher.Core.Settings;
@@ -26,6 +27,11 @@ public sealed class SettingsStore(string filePath)
             if (!Enum.IsDefined(settings.Theme))
             {
                 settings.Theme = AppTheme.System;
+            }
+
+            if (!Enum.IsDefined(settings.LibrarySort))
+            {
+                settings.LibrarySort = LibrarySortMode.LastPlayed;
             }
 
             if (settings.Window is { Width: <= 0 } or { Height: <= 0 })

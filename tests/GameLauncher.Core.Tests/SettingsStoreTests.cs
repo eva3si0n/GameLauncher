@@ -1,3 +1,4 @@
+using GameLauncher.Core.Library;
 using GameLauncher.Core.Settings;
 
 namespace GameLauncher.Core.Tests;
@@ -72,5 +73,25 @@ public sealed class SettingsStoreTests : IDisposable
         File.WriteAllText(SettingsPath, """{"window":{"x":0,"y":0,"width":0,"height":600,"isMaximized":false}}""");
 
         Assert.Null(new SettingsStore(SettingsPath).Load().Window);
+    }
+
+    [Fact]
+    public void LibrarySort_DefaultsToLastPlayed_AndRoundTrips()
+    {
+        var store = new SettingsStore(SettingsPath);
+        Assert.Equal(LibrarySortMode.LastPlayed, store.Load().LibrarySort);
+
+        store.Save(new AppSettings { LibrarySort = LibrarySortMode.Name });
+
+        Assert.Equal(LibrarySortMode.Name, store.Load().LibrarySort);
+        Assert.Contains("\"Name\"", File.ReadAllText(SettingsPath));
+    }
+
+    [Fact]
+    public void LibrarySort_Unknown_FallsBackToDefault()
+    {
+        File.WriteAllText(SettingsPath, """{"librarySort":99}""");
+
+        Assert.Equal(LibrarySortMode.LastPlayed, new SettingsStore(SettingsPath).Load().LibrarySort);
     }
 }

@@ -1,3 +1,5 @@
+using GameLauncher.Core.Library;
+
 namespace GameLauncher.Core.Settings;
 
 public enum AppTheme
@@ -16,6 +18,9 @@ public sealed class AppSettings
 
     /// <summary>Основная витрина Steam для описаний (код страны: tr, us, ru…).</summary>
     public string SteamRegion { get; set; } = DefaultSteamRegion;
+
+    /// <summary>Порядок карточек в библиотеке.</summary>
+    public LibrarySortMode LibrarySort { get; set; } = LibrarySortMode.LastPlayed;
 
     /// <summary>Крестик прячет окно в трей (время игр продолжает считаться); false — закрывает лаунчер.</summary>
     public bool CloseToTray { get; set; } = true;
