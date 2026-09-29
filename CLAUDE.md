@@ -19,7 +19,7 @@
 ## Сборка и проверка
 - App собирается только в CI (`windows-latest`, `.github/workflows/ci.yml`): XAML-компилятор WinUI работает только на Windows.
 - Локально на Linux: `dotnet build src/GameLauncher.Core` и `dotnet test --project tests/GameLauncher.Core.Tests`.
-- Артефакт CI — `GameLauncher-win-x64` (zip папки publish), хранится 7 дней: репозиторий приватный, квота хранилища Actions общая на аккаунт.
+- Артефакт CI — `GameLauncher-win-x64` (zip папки publish), хранится 7 дней — только для проверки сборки PR.
 
 ## Секреты
 - Секреты (API-ключ SteamGridDB и любые другие) никогда не коммитить — ни в код, ни в конфиги, ни в тесты.

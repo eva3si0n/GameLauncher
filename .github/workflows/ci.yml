@@ -42,7 +42,7 @@ jobs:
           "Publish: $($files.Count) files, $mb MB uncompressed" | Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append
 
       # upload-artifact сам упаковывает папку в zip — без zip внутри zip.
-      # Короткий срок хранения: репозиторий приватный, квота хранилища Actions общая на аккаунт.
+      # Артефакт нужен только для проверки сборки PR — храним недолго.
       - uses: actions/upload-artifact@v7
         with:
           name: GameLauncher-win-x64
