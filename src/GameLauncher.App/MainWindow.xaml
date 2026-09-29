@@ -10,7 +10,13 @@
         <MicaBackdrop />
     </Window.SystemBackdrop>
 
-    <Grid x:Name="Root">
+    <!-- Перетаскивание exe и ярлыков .lnk в окно добавляет игры. Фон нужен, чтобы пустые места принимали drop. -->
+    <Grid
+        x:Name="Root"
+        AllowDrop="True"
+        Background="Transparent"
+        DragOver="OnDragOver"
+        Drop="OnDrop">
     <Grid.RowDefinitions>
         <RowDefinition Height="Auto" />
         <RowDefinition Height="*" />
@@ -184,7 +190,7 @@
             <TextBlock
                 HorizontalAlignment="Center"
                 Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                Text="Нажмите «Добавить игру» и выберите .exe" />
+                Text="Нажмите «Добавить игру» и выберите .exe или перетащите в окно exe или ярлык игры" />
         </StackPanel>
 
         <TextBlock

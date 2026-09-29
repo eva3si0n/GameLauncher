@@ -17,6 +17,7 @@
 - Запись файлов данных — только через `AtomicFile` (Core). Резервные копии — `BackupService` (Core): читает файлы с `FileShare.ReadWrite | Delete`, чтобы не мешать атомарной замене.
 - История сессий — `PlayHistory` (`sessions.json`, Core); пишет `PlaySessionTracker` при каждом сохранении времени (одна запись на сессию, обновляется). Расчёты статистики — `PlayStats`. Общее время игры (`Game.TotalPlayTime`) остаётся главным: в нём и время до появления истории.
 - Сортировка библиотеки — `LibrarySort` (Core); по названию — правила ru-RU через ICU (цифры, кириллица, латиница; «ё» как «е»), так же и в Windows 11. Экран «Статистика» — `StatsViewModel`, страница игры — `GameStatsViewModel`; столбики графика — общий `DayBar.Build`.
+- Добавление перетаскиванием — `GameImporter` (Core): exe, ярлыки .lnk (цель читает `IShortcutResolver`, в App — `ShellShortcutResolver` через COM `IShellLink`), отказ для .url и лаунчеров магазинов (список `StoreLaunchers`; общие имена вроде `launcher.exe` туда не добавлять).
 - `tests/GameLauncher.Core.Tests` — тесты Core.
 - Иконка — `src/GameLauncher.App/Assets/GameLauncher.ico` (exe и окно) и `TitleBarIcon.png` (строка заголовка); генерируется `tools/icon/make_icon.py` (геймпад — Fluent UI System Icons, MIT; логотип Xbox — товарный знак, не использовать), руками не править. Сведения о файле (автор, копирайт) — в `GameLauncher.App.csproj`, CI проверяет, что они не пустые.
 - Данные пользователя — JSON в `%LocalAppData%\GameLauncher`, запись атомарная (временный файл + замена).

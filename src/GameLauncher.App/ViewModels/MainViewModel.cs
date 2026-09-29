@@ -29,6 +29,7 @@ public sealed class MainViewModel : ObservableObject
     private readonly DetailsService _details;
     private readonly GameRemover _remover;
     private readonly PlayHistory _history;
+    private readonly GameImporter _importer;
     private readonly string? _corruptBackupPath;
     private GameItemViewModel? _selectedGame;
     private GameStatsViewModel? _selectedStats;
@@ -47,6 +48,7 @@ public sealed class MainViewModel : ObservableObject
         GameRemover remover,
         SettingsViewModel settings,
         PlayHistory history,
+        IShortcutResolver shortcuts,
         string? corruptBackupPath)
     {
         _library = library;
@@ -58,6 +60,7 @@ public sealed class MainViewModel : ObservableObject
         _details = details;
         _remover = remover;
         _history = history;
+        _importer = new GameImporter(library, shortcuts);
         _corruptBackupPath = corruptBackupPath;
         Settings = settings;
         _playTime.Changed += (_, _) => RefreshPlayTime();
@@ -342,6 +345,31 @@ public sealed class MainViewModel : ObservableObject
         var item = CreateItem(game);
         Games.Add(item);
         await item.LoadImagesAsync(_artwork);
+    }
+
+    /// <summary>Файлы перетащены в окно: exe и ярлыки .lnk добавляются, об остальном — сообщение.</summary>
+    public async Task AddDroppedAsync(IReadOnlyList<string> paths)
+    {
+        if (paths.Count == 0)
+        {
+            return;
+        }
+
+        var results = _importer.Import(paths);
+        var loads = new List<Task>();
+        foreach (var result in results.Where(r => r.Outcome == ImportOutcome.Added))
+        {
+            var item = CreateItem(result.Game!);
+            Games.Add(item);
+            loads.Add(item.LoadImagesAsync(_artwork));
+        }
+
+        if (GameImporter.Summarize(results) is { } summary)
+        {
+            await _dialogs.ShowMessageAsync("Добавление игр", summary);
+        }
+
+        await Task.WhenAll(loads);
     }
 
     private async Task PlayAsync(GameItemViewModel item)
