@@ -16,6 +16,7 @@
 - `src/GameLauncher.App` — WinUI 3, `net10.0-windows`. ViewModel отвечают за экран и диалоги; логику (обложки — `CoverService`, описания — `DetailsService`, удаление — `GameRemover`) держать в сервисах Core, чтобы она покрывалась тестами на Linux.
 - Запись файлов данных — только через `AtomicFile` (Core). Резервные копии — `BackupService` (Core): читает файлы с `FileShare.ReadWrite | Delete`, чтобы не мешать атомарной замене.
 - История сессий — `PlayHistory` (`sessions.json`, Core); пишет `PlaySessionTracker` при каждом сохранении времени (одна запись на сессию, обновляется). Расчёты статистики — `PlayStats`. Общее время игры (`Game.TotalPlayTime`) остаётся главным: в нём и время до появления истории.
+- Сортировка библиотеки — `LibrarySort` (Core); по названию — правила ru-RU через ICU (цифры, кириллица, латиница; «ё» как «е»), так же и в Windows 11. Экран «Статистика» — `StatsViewModel`, страница игры — `GameStatsViewModel`; столбики графика — общий `DayBar.Build`.
 - `tests/GameLauncher.Core.Tests` — тесты Core.
 - Иконка — `src/GameLauncher.App/Assets/GameLauncher.ico` (exe и окно) и `TitleBarIcon.png` (строка заголовка); генерируется `tools/icon/make_icon.py` (геймпад — Fluent UI System Icons, MIT; логотип Xbox — товарный знак, не использовать), руками не править. Сведения о файле (автор, копирайт) — в `GameLauncher.App.csproj`, CI проверяет, что они не пустые.
 - Данные пользователя — JSON в `%LocalAppData%\GameLauncher`, запись атомарная (временный файл + замена).
@@ -27,6 +28,7 @@
 - Смоук-запуск в CI (`Smoke launch`) не отключать: только он ловит падения при старте — XAML/ресурсы не проверяются ни компиляцией, ни тестами Core.
 - Трей — свой `TrayIcon` (Shell_NotifyIcon) со скрытым верхнеуровневым окном: message-only окна не получают `TaskbarCreated` и `WM_ENDSESSION`. `AppWindow.Closing` приходит только от закрытия системой (крестик, Alt+F4), не от `Window.Close()` — выход из трея сохраняет размер окна сам. Смоук-тест `Smoke launch (tray)` проверяет запуск с `--tray`.
 - Восстановление из копии: `Restore` идёт синхронно в UI-потоке (все записи библиотеки — оттуда же), затем перезапуск без сохранения (`IAppLifecycle.RestartWithoutSaving`). Перезапуск свой, с `--wait-pid=<pid>`: новый процесс ждёт выхода старого до `FindOrRegisterForKey`, иначе отдал бы активацию умирающему экземпляру.
+- Ошибки XAML «Cannot resolve DataType vm:…» в CI обычно не про XAML: не собрался C# (ищите `error CS` в логе), и XAML-компилятор не видит типы проекта. Пример — CS8602 от лямбды в конструкторе, обращающейся к ещё не присвоенному свойству.
 - Один экземпляр: своя точка входа `Program.cs` (`DISABLE_XAML_GENERATED_MAIN`, `AppInstance.FindOrRegisterForKey`). Два экземпляра перезаписывали бы друг другу `library.json`. Смоук-тест проверяет, что второй запуск сразу завершается.
 
 ## Сборка и проверка
@@ -35,6 +37,7 @@
 - Из облачной сессии Claude недоступны SteamGridDB и Steam Store (сетевая политика) — HTTP-клиенты тестируются на подставных ответах (`FakeHttpHandler`), реальную работу проверяет владелец на Windows 11. GUI в контейнере не запустить.
 - Артефакт CI — `GameLauncher-win-x64` (zip папки publish), хранится 7 дней — только для проверки сборки PR.
 - Релиз — `.github/workflows/release.yml`: push тега `vX.Y.Z` или ручной запуск с версией `X.Y.Z` (тег создаётся сам); zip публикуется в GitHub Releases. Push тегов из облачной сессии Claude не проходит — используйте ручной запуск.
+- Версия в релизе берётся из `-p:Version` и перебивает `<Version>` в `GameLauncher.App.csproj`. После релиза поднять `<Version>` отдельным PR — иначе артефакты CI показывают в «О программе» старую версию.
 
 ## Порядок работы
 - Каждое изменение — отдельный PR в `main`; после зелёного CI владелец проверяет артефакт на Windows 11.
