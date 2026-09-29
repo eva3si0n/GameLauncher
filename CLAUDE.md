@@ -14,7 +14,7 @@
 ## Структура
 - `src/GameLauncher.Core` — `net10.0`, никаких зависимостей от Windows. Всё, что трогает ОС (процессы, DPAPI, иконки), — за интерфейсом; реализация в App.
 - `src/GameLauncher.App` — WinUI 3, `net10.0-windows`. ViewModel отвечают за экран и диалоги; логику (обложки — `CoverService`, описания — `DetailsService`, удаление — `GameRemover`) держать в сервисах Core, чтобы она покрывалась тестами на Linux.
-- Запись файлов данных — только через `AtomicFile` (Core).
+- Запись файлов данных — только через `AtomicFile` (Core). Резервные копии — `BackupService` (Core): читает файлы с `FileShare.ReadWrite | Delete`, чтобы не мешать атомарной замене.
 - `tests/GameLauncher.Core.Tests` — тесты Core.
 - Иконка — `src/GameLauncher.App/Assets/GameLauncher.ico` (exe и окно) и `TitleBarIcon.png` (строка заголовка); генерируется `tools/icon/make_icon.py` (геймпад — Fluent UI System Icons, MIT; логотип Xbox — товарный знак, не использовать), руками не править. Сведения о файле (автор, копирайт) — в `GameLauncher.App.csproj`, CI проверяет, что они не пустые.
 - Данные пользователя — JSON в `%LocalAppData%\GameLauncher`, запись атомарная (временный файл + замена).
@@ -25,6 +25,7 @@
 - Steam `appdetails` отвечает `success=false`, если игра не продаётся в регионе `cc`; поэтому витрины перебираются (основная из настроек → us → ru).
 - Смоук-запуск в CI (`Smoke launch`) не отключать: только он ловит падения при старте — XAML/ресурсы не проверяются ни компиляцией, ни тестами Core.
 - Трей — свой `TrayIcon` (Shell_NotifyIcon) со скрытым верхнеуровневым окном: message-only окна не получают `TaskbarCreated` и `WM_ENDSESSION`. `AppWindow.Closing` приходит только от закрытия системой (крестик, Alt+F4), не от `Window.Close()` — выход из трея сохраняет размер окна сам. Смоук-тест `Smoke launch (tray)` проверяет запуск с `--tray`.
+- Восстановление из копии: `Restore` идёт синхронно в UI-потоке (все записи библиотеки — оттуда же), затем перезапуск без сохранения (`IAppLifecycle.RestartWithoutSaving`). Перезапуск свой, с `--wait-pid=<pid>`: новый процесс ждёт выхода старого до `FindOrRegisterForKey`, иначе отдал бы активацию умирающему экземпляру.
 - Один экземпляр: своя точка входа `Program.cs` (`DISABLE_XAML_GENERATED_MAIN`, `AppInstance.FindOrRegisterForKey`). Два экземпляра перезаписывали бы друг другу `library.json`. Смоук-тест проверяет, что второй запуск сразу завершается.
 
 ## Сборка и проверка

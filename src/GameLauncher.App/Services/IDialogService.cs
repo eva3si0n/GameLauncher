@@ -1,4 +1,5 @@
 using GameLauncher.Core.Artwork;
+using GameLauncher.Core.Backup;
 
 namespace GameLauncher.App.Services;
 
@@ -12,6 +13,15 @@ public interface IDialogService
     Task<string?> PromptRenameAsync(string currentName);
 
     Task<bool> ConfirmDeleteAsync(string gameName);
+
+    /// <summary>Куда сохранить резервную копию (.zip). Null — отмена.</summary>
+    Task<string?> PickBackupSaveAsync(string suggestedFileName);
+
+    /// <summary>Выбор резервной копии (.zip) для восстановления. Null — отмена.</summary>
+    Task<string?> PickBackupOpenAsync();
+
+    /// <summary>Подтверждение восстановления: текущие данные будут заменены.</summary>
+    Task<bool> ConfirmRestoreAsync(BackupInfo backup);
 
     Task ShowMessageAsync(string title, string message);
 

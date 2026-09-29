@@ -21,6 +21,9 @@ public sealed partial class MainWindow : Window
     /// <summary>Закрытие по-настоящему (выход из меню трея), а не в трей.</summary>
     private bool _exiting;
 
+    /// <summary>Данные на диске заменены резервной копией — размер окна больше не сохраняем.</summary>
+    private bool _savingDisabled;
+
     public MainWindow(Func<Window, MainViewModel> createViewModel)
     {
         ViewModel = createViewModel(this);
@@ -63,6 +66,9 @@ public sealed partial class MainWindow : Window
 
         Activate();
     }
+
+    /// <summary>Больше ничего не записывать в настройки (перед перезапуском после восстановления).</summary>
+    public void DisableSaving() => _savingDisabled = true;
 
     /// <summary>Закрыть окно по-настоящему — лаунчер завершается.</summary>
     public void CloseForExit()
@@ -147,6 +153,11 @@ public sealed partial class MainWindow : Window
 
     private void SavePlacement()
     {
+        if (_savingDisabled)
+        {
+            return;
+        }
+
         var state = PresenterState;
         var bounds = state == OverlappedPresenterState.Restored ? CurrentBounds : _normalBounds;
         ViewModel.Settings.SaveWindowPlacement(new WindowPlacement(

@@ -435,6 +435,19 @@
                 </StackPanel>
 
                 <StackPanel Style="{StaticResource SettingsCardStyle}">
+                    <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="Резервная копия" />
+                    <TextBlock
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Text="Каждый день лаунчер сам копирует библиотеку и настройки в папку автокопий (хранятся последние 7). Полная копия с обложками и описаниями — кнопкой ниже; её стоит держать не на системном диске. Ключ SteamGridDB в копии не входит."
+                        TextWrapping="Wrap" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Command="{x:Bind ViewModel.Settings.CreateBackupCommand}" Content="Сохранить копию…" />
+                        <Button Command="{x:Bind ViewModel.Settings.RestoreBackupCommand}" Content="Восстановить из копии…" />
+                    </StackPanel>
+                    <HyperlinkButton Padding="0" Command="{x:Bind ViewModel.Settings.OpenBackupsFolderCommand}" Content="Открыть папку автокопий" />
+                </StackPanel>
+
+                <StackPanel Style="{StaticResource SettingsCardStyle}">
                     <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="О программе" />
                     <TextBlock>
                         <Run Text="GameLauncher" />

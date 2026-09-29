@@ -34,6 +34,9 @@ public sealed class PlayTimeMonitor
 
     public PlaySessionState GetState(Guid gameId) => _tracker.GetState(gameId);
 
+    /// <summary>Есть запущенные или ожидаемые игры.</summary>
+    public bool HasSessions => _tracker.HasSessions;
+
     public void OnLaunched(Game game)
     {
         _tracker.Launch(game, _time.GetUtcNow());

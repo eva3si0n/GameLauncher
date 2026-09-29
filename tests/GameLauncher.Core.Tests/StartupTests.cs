@@ -22,6 +22,19 @@ public sealed class StartupTests : IDisposable
         Assert.Equal(expected, StartupOptions.Parse(args).StartInTray);
     }
 
+    [Theory]
+    [InlineData(new string[0], null)]
+    [InlineData(new[] { "--wait-pid=1234" }, 1234)]
+    [InlineData(new[] { "--tray", "--WAIT-PID=42" }, 42)]
+    [InlineData(new[] { "--wait-pid=" }, null)]
+    [InlineData(new[] { "--wait-pid=abc" }, null)]
+    [InlineData(new[] { "--wait-pid=-5" }, null)]
+    [InlineData(new[] { "--wait-pid=0" }, null)]
+    public void Parse_WaitForProcessId(string[] args, int? expected)
+    {
+        Assert.Equal(expected, StartupOptions.Parse(args).WaitForProcessId);
+    }
+
     [Fact]
     public void Command_QuotesPathAndAddsTrayArgument()
     {
