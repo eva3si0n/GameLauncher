@@ -34,12 +34,18 @@ jobs:
       - name: Publish
         run: dotnet publish src/GameLauncher.App/GameLauncher.App.csproj -c Release -r win-x64 -o artifacts/GameLauncher
 
-      - name: Zip
+      - name: Publish size
         shell: pwsh
-        run: Compress-Archive -Path artifacts/GameLauncher/* -DestinationPath artifacts/GameLauncher-win-x64.zip
+        run: |
+          $files = Get-ChildItem artifacts/GameLauncher -Recurse -File
+          $mb = [math]::Round(($files | Measure-Object Length -Sum).Sum / 1MB, 1)
+          "Publish: $($files.Count) files, $mb MB uncompressed" | Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append
 
+      # upload-artifact сам упаковывает папку в zip — без zip внутри zip.
+      # Короткий срок хранения: репозиторий приватный, квота хранилища Actions общая на аккаунт.
       - uses: actions/upload-artifact@v7
         with:
           name: GameLauncher-win-x64
-          path: artifacts/GameLauncher-win-x64.zip
+          path: artifacts/GameLauncher/
           if-no-files-found: error
+          retention-days: 7
