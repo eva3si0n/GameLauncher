@@ -39,7 +39,10 @@
 [Releases](https://github.com/eva3si0n/GameLauncher/releases), распакуйте в любую папку и запустите `GameLauncher.exe`.
 Приложение self-contained (внутри .NET и Windows App SDK), нужна Windows 11 x64.
 
-Подписи у exe нет — SmartScreen при первом запуске может предупредить: «Подробнее» → «Выполнить в любом случае».
+Подписи у exe нет, поэтому SmartScreen предупреждает о файлах, скачанных из интернета («Неизвестный издатель»).
+Чтобы предупреждения не было, разблокируйте zip **до распаковки**: правой кнопкой → Свойства → «Разблокировать» → ОК,
+или в PowerShell — `Unblock-File .\GameLauncher-<версия>-win-x64.zip`. Уже распакованную папку:
+`Get-ChildItem <папка> -Recurse | Unblock-File`. Без этого можно нажать «Подробнее» → «Выполнить в любом случае».
 
 Для обновления замените папку с программой: все данные хранятся отдельно (см. [Данные](#данные)).
 
@@ -126,6 +129,7 @@ CI (`.github/workflows/ci.yml`) на каждом PR собирает, гоня�
   - `Settings` — настройки, размер и положение окна.
 - `src/GameLauncher.App` — UI на WinUI 3 + CommunityToolkit.Mvvm и Windows-реализации: процессы (`QueryFullProcessImageName`), DPAPI, иконки exe, диалоги.
 - `tests/GameLauncher.Core.Tests` — тесты xUnit v3 (HTTP-клиенты — на подставных ответах).
+- `tools/icon` — генератор иконки приложения (`src/GameLauncher.App/Assets`); геймпад — `xbox_controller` из [Fluent UI System Icons](https://github.com/microsoft/fluentui-system-icons) (MIT). Нужны Pillow и cairosvg.
 
 ## Лицензия
 

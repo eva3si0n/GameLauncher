@@ -8,8 +8,20 @@
     <SupportedOSPlatformVersion>10.0.22000.0</SupportedOSPlatformVersion>
     <RootNamespace>GameLauncher.App</RootNamespace>
     <AssemblyName>GameLauncher</AssemblyName>
-    <Version>1.0.1</Version>
+    <Version>1.0.2</Version>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\GameLauncher.ico</ApplicationIcon>
+
+    <!-- Сведения о файле (Свойства → Подробно). Издателя в SmartScreen/UAC они не задают — это делает только подпись. -->
+    <Product>GameLauncher</Product>
+    <!-- AssemblyTitle → «Описание файла»: так процесс называется в диспетчере задач -->
+    <AssemblyTitle>GameLauncher</AssemblyTitle>
+    <Description>Лаунчер игр для Windows 11</Description>
+    <Authors>eva3si0n</Authors>
+    <Company>eva3si0n</Company>
+    <Copyright>© 2026 eva3si0n</Copyright>
+    <!-- Без «+хеш коммита» в «Версии продукта» -->
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <UseWinUI>true</UseWinUI>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <!-- Своя точка входа (Program.cs): лаунчер работает в одном экземпляре -->
@@ -36,6 +48,11 @@
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" />
     <PackageReference Include="CommunityToolkit.Mvvm" />
     <PackageReference Include="System.Security.Cryptography.ProtectedData" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Иконка окна (панель задач, Alt+Tab) и строки заголовка грузятся из файлов рядом с exe -->
+    <Content Include="Assets\GameLauncher.ico;Assets\TitleBarIcon.png" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
