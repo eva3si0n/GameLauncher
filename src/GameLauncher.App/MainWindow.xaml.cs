@@ -214,6 +214,14 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private async void OnTopGameClick(object sender, ItemClickEventArgs e)
+    {
+        if (e.ClickedItem is TopGameItem item)
+        {
+            await ViewModel.OpenFromStatsAsync(item);
+        }
+    }
+
     private async void OnGameClick(object sender, ItemClickEventArgs e)
     {
         if (e.ClickedItem is GameItemViewModel item)

@@ -121,4 +121,28 @@ public sealed class PlayStatsTests
     {
         Assert.Equal("1 октября", PlayTimeFormat.FormatDay(new DateOnly(2026, 10, 1)));
     }
+
+    [Fact]
+    public void SummarizePeriod_CountsOverlappingSessionsAndDistinctGames()
+    {
+        var sessions = new[]
+        {
+            S(29, 10, 1, GameA),
+            S(28, 10, 2, GameA),
+            S(22, 23, 2, GameB), // заходит в период на час (с полуночи 23-го)
+            S(10, 10, 5, GameB), // вне периода
+        };
+
+        var summary = PlayStats.SummarizePeriod(sessions, PlayStats.PeriodStart(Now, Msk, 7), Now);
+
+        Assert.Equal(new PeriodSummary(TimeSpan.FromHours(4), 3, 2), summary);
+    }
+
+    [Fact]
+    public void SummarizePeriod_AllTime()
+    {
+        var summary = PlayStats.SummarizePeriod([S(1, 10, 5, GameA), S(29, 10, 1, GameB)], DateTimeOffset.MinValue, Now);
+
+        Assert.Equal(new PeriodSummary(TimeSpan.FromHours(6), 2, 2), summary);
+    }
 }

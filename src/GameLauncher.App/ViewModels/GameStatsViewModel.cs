@@ -3,14 +3,30 @@ using GameLauncher.Core.PlayTime;
 namespace GameLauncher.App.ViewModels;
 
 /// <summary>Столбик графика по дням. Высота — в пикселях; пустой день — тонкая полупрозрачная черта.</summary>
-public sealed record DayBar(double Height, double Opacity, string ToolTip);
+public sealed record DayBar(double Height, double Opacity, string ToolTip)
+{
+    private const double ChartHeight = 80;
+
+    /// <summary>Столбики для дней: самый длинный день — во всю высоту графика.</summary>
+    public static IReadOnlyList<DayBar> Build(IReadOnlyList<DayTotal> days)
+    {
+        var max = days.Count == 0 ? TimeSpan.Zero : days.Max(d => d.Total);
+        return days.Select(d => d.Total > TimeSpan.Zero
+                ? new DayBar(Math.Max(3, ChartHeight * (d.Total / max)), 1, $"{PlayTimeFormat.FormatDay(d.Day)}: {PlayTimeFormat.FormatDuration(d.Total)}")
+                : new DayBar(2, 0.25, $"{PlayTimeFormat.FormatDay(d.Day)}: не играли"))
+            .ToList();
+    }
+
+    /// <summary>Подпись под графиком: «31 августа — 29 сентября».</summary>
+    public static string Caption(IReadOnlyList<DayTotal> days) =>
+        days.Count == 0 ? "" : $"{PlayTimeFormat.FormatDay(days[0].Day)} — {PlayTimeFormat.FormatDay(days[^1].Day)}";
+}
 
 /// <summary>Статистика игры на её странице: итоги, график за 30 дней, последние сессии.</summary>
 public sealed class GameStatsViewModel
 {
     public const int ChartDays = 30;
     public const int RecentCount = 10;
-    private const double ChartHeight = 80;
 
     public GameStatsViewModel(IReadOnlyCollection<PlaySession> sessions, DateTimeOffset now, TimeZoneInfo timeZone)
     {
@@ -23,12 +39,8 @@ public sealed class GameStatsViewModel
         HasHistory = summary.SessionCount > 0;
 
         var days = PlayStats.Daily(sessions, now, timeZone, ChartDays);
-        var max = days.Max(d => d.Total);
-        Days = days.Select(d => d.Total > TimeSpan.Zero
-                ? new DayBar(Math.Max(3, ChartHeight * (d.Total / max)), 1, $"{PlayTimeFormat.FormatDay(d.Day)}: {PlayTimeFormat.FormatDuration(d.Total)}")
-                : new DayBar(2, 0.25, $"{PlayTimeFormat.FormatDay(d.Day)}: не играли"))
-            .ToList();
-        ChartCaption = $"{PlayTimeFormat.FormatDay(days[0].Day)} — {PlayTimeFormat.FormatDay(days[^1].Day)}";
+        Days = DayBar.Build(days);
+        ChartCaption = DayBar.Caption(days);
 
         Recent = sessions
             .OrderByDescending(s => s.Start)
