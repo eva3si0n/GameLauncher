@@ -44,6 +44,33 @@ jobs:
           $mb = [math]::Round(($files | Measure-Object Length -Sum).Sum / 1MB, 1)
           "Publish: $($files.Count) files, $mb MB uncompressed" | Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append
 
+      # Сведения о файле и иконка exe: без них ни компиляция, ни смоук-запуск не упадут.
+      - name: Exe metadata and icon
+        shell: pwsh
+        run: |
+          $exe = Resolve-Path artifacts/GameLauncher/GameLauncher.exe
+          $info = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($exe)
+          $info | Format-List CompanyName, ProductName, FileDescription, LegalCopyright, Comments, FileVersion, ProductVersion | Out-String | Write-Host
+          $missing = 'CompanyName', 'ProductName', 'FileDescription', 'LegalCopyright' | Where-Object { [string]::IsNullOrWhiteSpace($info.$_) }
+          if ($missing) { Write-Error "Пустые поля: $($missing -join ', ')"; exit 1 }
+
+          Add-Type -TypeDefinition @'
+          using System;
+          using System.Runtime.InteropServices;
+          public static class IconProbe {
+              [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+              public static extern uint ExtractIconEx(string file, int index, IntPtr[] large, IntPtr[] small, uint count);
+          }
+          '@
+          # index = -1 → число иконок в файле
+          $count = [IconProbe]::ExtractIconEx($exe, -1, $null, $null, 0)
+          Write-Host "Icons in exe: $count"
+          if ($count -lt 1) { Write-Error 'В exe нет иконки'; exit 1 }
+
+          foreach ($f in 'Assets/GameLauncher.ico', 'Assets/TitleBarIcon.png') {
+            if (-not (Test-Path "artifacts/GameLauncher/$f")) { Write-Error "Нет $f рядом с exe"; exit 1 }
+          }
+
       # Смоук-тест: приложение должно запуститься и не упасть за 20 секунд.
       - name: Smoke launch
         shell: pwsh

@@ -126,6 +126,7 @@ CI (`.github/workflows/ci.yml`) на каждом PR собирает, гоня�
   - `Settings` — настройки, размер и положение окна.
 - `src/GameLauncher.App` — UI на WinUI 3 + CommunityToolkit.Mvvm и Windows-реализации: процессы (`QueryFullProcessImageName`), DPAPI, иконки exe, диалоги.
 - `tests/GameLauncher.Core.Tests` — тесты xUnit v3 (HTTP-клиенты — на подставных ответах).
+- `tools/make_icon.py` — генератор иконки приложения (`src/GameLauncher.App/Assets`); нужен Pillow.
 
 ## Лицензия
 

@@ -19,7 +19,7 @@
     <!-- Своя строка заголовка: контент продлён под неё, кнопки окна рисует система -->
     <Grid x:Name="AppTitleBar" Height="48">
         <StackPanel Margin="16,0,0,0" VerticalAlignment="Center" Orientation="Horizontal" Spacing="12">
-            <FontIcon FontSize="16" Glyph="&#xE7FC;" />
+            <Image x:Name="TitleBarIcon" Width="16" Height="16" VerticalAlignment="Center" />
             <TextBlock VerticalAlignment="Center" Style="{StaticResource CaptionTextBlockStyle}" Text="GameLauncher" />
         </StackPanel>
     </Grid>

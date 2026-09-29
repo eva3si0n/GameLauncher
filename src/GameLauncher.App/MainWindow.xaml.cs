@@ -5,6 +5,7 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media.Imaging;
 using Windows.Graphics;
 
 namespace GameLauncher.App;
@@ -23,6 +24,7 @@ public sealed partial class MainWindow : Window
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
         AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Tall;
+        SetIcons();
 
         ApplyTheme();
         ViewModel.Settings.ThemeChanged += (_, _) => ApplyTheme();
@@ -40,6 +42,17 @@ public sealed partial class MainWindow : Window
     private PixelRect CurrentBounds => new(AppWindow.Position.X, AppWindow.Position.Y, AppWindow.Size.Width, AppWindow.Size.Height);
 
     private OverlappedPresenterState? PresenterState => (AppWindow.Presenter as OverlappedPresenter)?.State;
+
+    /// <summary>
+    /// Иконка окна (панель задач, Alt+Tab) и строки заголовка. Файлы лежат рядом с exe (Content в csproj);
+    /// абсолютный путь — чтобы не зависеть от разрешения ms-appx:/// в unpackaged-приложении.
+    /// </summary>
+    private void SetIcons()
+    {
+        var assets = Path.Combine(AppContext.BaseDirectory, "Assets");
+        AppWindow.SetIcon(Path.Combine(assets, "GameLauncher.ico"));
+        TitleBarIcon.Source = new BitmapImage(new Uri(Path.Combine(assets, "TitleBarIcon.png")));
+    }
 
     /// <summary>Размер и положение с прошлого запуска, вписанные в рабочую область монитора.</summary>
     private void RestorePlacement()
