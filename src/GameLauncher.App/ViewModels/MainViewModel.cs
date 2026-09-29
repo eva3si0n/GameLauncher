@@ -184,7 +184,6 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>Вызывается, когда окно готово показывать диалоги.</summary>
     public async Task OnLoadedAsync()
     {
-        // Сначала сообщение (если есть), потом картинки: диалог не должен ждать загрузки всей библиотеки.
         if (_corruptBackupPath is not null)
         {
             await _dialogs.ShowMessageAsync(
@@ -192,11 +191,11 @@ public sealed class MainViewModel : ObservableObject
                 $"Не удалось прочитать библиотеку, начата новая. Старый файл сохранён здесь:\n{_corruptBackupPath}");
         }
 
-        foreach (var item in Games.ToList())
-        {
-            await item.LoadImagesAsync(_artwork);
-        }
+        // Картинки карточек грузятся при появлении карточки на экране (EnsureImagesLoaded).
     }
+
+    /// <summary>Карточка появилась на экране — загрузить её картинки, если ещё не загружены.</summary>
+    public Task EnsureImagesLoadedAsync(GameItemViewModel item) => item.EnsureImagesLoadedAsync(_artwork);
 
     private void RefreshPlayTime()
     {

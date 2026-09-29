@@ -4,7 +4,13 @@
   </PropertyGroup>
   <ItemGroup>
     <!-- App -->
-    <PackageVersion Include="Microsoft.WindowsAppSDK" Version="2.5.1" />
+    <!-- Только компонент WinUI (он сам тянет Foundation, InteractiveExperiences, Base, WebView2) вместо метапакета
+         Microsoft.WindowsAppSDK: так в self-contained сборку не попадают неиспользуемые AI, Search, Widgets, ML, DWrite.
+         Версия = версия WinUI из метапакета Microsoft.WindowsAppSDK 2.5.1. -->
+    <PackageVersion Include="Microsoft.WindowsAppSDK.WinUI" Version="2.3.9" />
+    <!-- WinUI 2.3.9 просит InteractiveExperiences >= 2.1.8, но на NuGet есть только 2.1.9 (её же ставит метапакет 2.5.1);
+         явная версия убирает предупреждение NU1603 и фиксирует тот же набор, что был с метапакетом. -->
+    <PackageVersion Include="Microsoft.WindowsAppSDK.InteractiveExperiences" Version="2.1.9" />
     <PackageVersion Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.2705" />
     <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="10.0.12" />
