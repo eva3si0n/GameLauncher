@@ -22,7 +22,7 @@ public partial class App : Application
     public App()
     {
         InitializeComponent();
-        UnhandledException += (_, e) => CrashLog.Write(e.Exception);
+        CrashLog.Install(this);
     }
 
     /// <summary>Показать окно поверх остальных — при повторном запуске лаунчера. Можно вызывать из любого потока.</summary>

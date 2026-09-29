@@ -11,6 +11,7 @@
     <Version>1.0.1</Version>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <UseWinUI>true</UseWinUI>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <!-- Своя точка входа (Program.cs): лаунчер работает в одном экземпляре -->
     <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
 

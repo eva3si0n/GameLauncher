@@ -1,0 +1,22 @@
+# Еженедельные обновления зависимостей. Каждое обновление — PR с прогоном CI (сборка, тесты, смоук-запуск).
+version: 2
+updates:
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      nuget:
+        patterns: ['*']
+    ignore:
+      # Мажорные версии (например, .NET 11, Windows App SDK 3.x) — только осознанно, отдельным решением.
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ['*']
