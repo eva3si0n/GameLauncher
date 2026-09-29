@@ -22,6 +22,7 @@
 - Путь процесса — только через `QueryFullProcessImageName` (`PROCESS_QUERY_LIMITED_INFORMATION`); `Process.MainModule` падает на повышенных/защищённых процессах.
 - Steam `appdetails` отвечает `success=false`, если игра не продаётся в регионе `cc`; поэтому витрины перебираются (основная из настроек → us → ru).
 - Смоук-запуск в CI (`Smoke launch`) не отключать: только он ловит падения при старте — XAML/ресурсы не проверяются ни компиляцией, ни тестами Core.
+- Один экземпляр: своя точка входа `Program.cs` (`DISABLE_XAML_GENERATED_MAIN`, `AppInstance.FindOrRegisterForKey`). Два экземпляра перезаписывали бы друг другу `library.json`. Смоук-тест проверяет, что второй запуск сразу завершается.
 
 ## Сборка и проверка
 - App собирается только в CI (`windows-latest`, `.github/workflows/ci.yml`): XAML-компилятор WinUI работает только на Windows.

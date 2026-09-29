@@ -283,16 +283,17 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>Вызывается, когда окно готово показывать диалоги.</summary>
     public async Task OnLoadedAsync()
     {
-        foreach (var item in Games.ToList())
-        {
-            await item.LoadImagesAsync(_artwork);
-        }
-
+        // Сначала сообщение (если есть), потом картинки: диалог не должен ждать загрузки всей библиотеки.
         if (_corruptBackupPath is not null)
         {
             await _dialogs.ShowMessageAsync(
                 "Файл библиотеки повреждён",
                 $"Не удалось прочитать библиотеку, начата новая. Старый файл сохранён здесь:\n{_corruptBackupPath}");
+        }
+
+        foreach (var item in Games.ToList())
+        {
+            await item.LoadImagesAsync(_artwork);
         }
     }
 
@@ -445,21 +446,29 @@ public sealed class MainViewModel : ObservableObject
                 return;
             }
 
+            // Обложку сохраняем в библиотеку сразу: при скачивании старый файл обложки уже заменён.
             var gridFile = await _artwork.DownloadAsync(item.Id, ArtworkKind.Grid, grid.Url);
+            _library.SetArtwork(item.Id, gridFile, item.Game.HeroFile);
 
-            // Баннер берём лучший по рейтингу; если его нет — оставляем без баннера.
-            string? heroFile = null;
-            var heroes = await _steamGridDb.GetHeroesAsync(sgdbGame.Id);
-            if (heroes.Count > 0)
+            // Баннер — лучший по рейтингу. Его ошибка не критична: обложка уже сохранена, старый баннер остаётся.
+            try
             {
-                heroFile = await _artwork.DownloadAsync(item.Id, ArtworkKind.Hero, heroes[0].Url);
+                var heroes = await _steamGridDb.GetHeroesAsync(sgdbGame.Id);
+                if (heroes.Count > 0)
+                {
+                    var heroFile = await _artwork.DownloadAsync(item.Id, ArtworkKind.Hero, heroes[0].Url);
+                    _library.SetArtwork(item.Id, gridFile, heroFile);
+                }
+                else
+                {
+                    _library.SetArtwork(item.Id, gridFile, null);
+                    _artwork.Delete(item.Id, ArtworkKind.Hero);
+                }
             }
-            else
+            catch (Exception ex) when (ex is SteamGridDbException or HttpRequestException or IOException
+                                       or UnauthorizedAccessException or TaskCanceledException)
             {
-                _artwork.Delete(item.Id, ArtworkKind.Hero);
             }
-
-            _library.SetArtwork(item.Id, gridFile, heroFile);
         }
         catch (SteamGridDbException ex)
         {
@@ -579,6 +588,7 @@ public sealed class MainViewModel : ObservableObject
         }
 
         item.Refresh();
+        RebuildVisibleGames(); // новое название может подходить или не подходить под текущий поиск
     }
 
     private async Task DeleteAsync(GameItemViewModel item)

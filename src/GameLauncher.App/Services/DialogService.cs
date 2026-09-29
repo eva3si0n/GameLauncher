@@ -31,7 +31,7 @@ public sealed class DialogService(Window window) : IDialogService
         textBox.TextChanged += (_, _) => dialog.IsPrimaryButtonEnabled = !string.IsNullOrWhiteSpace(textBox.Text);
         textBox.Loaded += (_, _) => textBox.Focus(FocusState.Programmatic);
 
-        return await dialog.ShowAsync() == ContentDialogResult.Primary ? textBox.Text : null;
+        return await ShowQueuedAsync(dialog) == ContentDialogResult.Primary ? textBox.Text : null;
     }
 
     public async Task<bool> ConfirmDeleteAsync(string gameName)
@@ -42,7 +42,7 @@ public sealed class DialogService(Window window) : IDialogService
         dialog.CloseButtonText = "Отмена";
         dialog.DefaultButton = ContentDialogButton.Close;
 
-        return await dialog.ShowAsync() == ContentDialogResult.Primary;
+        return await ShowQueuedAsync(dialog) == ContentDialogResult.Primary;
     }
 
     public async Task ShowMessageAsync(string title, string message)
@@ -50,7 +50,7 @@ public sealed class DialogService(Window window) : IDialogService
         var dialog = CreateDialog(title);
         dialog.Content = new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true };
         dialog.CloseButtonText = "OK";
-        await dialog.ShowAsync();
+        await ShowQueuedAsync(dialog);
     }
 
     public async Task<ApiKeyDialogResult> EditApiKeyAsync(bool hasKey, Func<string, Task<string?>> validate)
@@ -117,7 +117,7 @@ public sealed class DialogService(Window window) : IDialogService
             }
         };
 
-        return await dialog.ShowAsync() switch
+        return await ShowQueuedAsync(dialog) switch
         {
             ContentDialogResult.Primary => new ApiKeyDialogResult(ApiKeyDialogAction.Save, keyBox.Password.Trim()),
             ContentDialogResult.Secondary => new ApiKeyDialogResult(ApiKeyDialogAction.Remove),
@@ -211,7 +211,7 @@ public sealed class DialogService(Window window) : IDialogService
         };
         dialog.Opened += async (_, _) => await RunSearchAsync();
 
-        return await dialog.ShowAsync() == ContentDialogResult.Primary && list.SelectedIndex >= 0
+        return await ShowQueuedAsync(dialog) == ContentDialogResult.Primary && list.SelectedIndex >= 0
             ? results[list.SelectedIndex]
             : null;
     }
@@ -253,7 +253,7 @@ public sealed class DialogService(Window window) : IDialogService
         };
 
         _pickedByDoubleTap = false;
-        var result = await dialog.ShowAsync();
+        var result = await ShowQueuedAsync(dialog);
         return (result == ContentDialogResult.Primary || _pickedByDoubleTap) && grid.SelectedIndex >= 0
             ? images[grid.SelectedIndex]
             : null;
@@ -294,10 +294,29 @@ public sealed class DialogService(Window window) : IDialogService
         dialog.Content = panel;
         dialog.CloseButtonText = "Закрыть";
         dialog.DefaultButton = ContentDialogButton.Close;
-        await dialog.ShowAsync();
+        await ShowQueuedAsync(dialog);
     }
 
     private bool _pickedByDoubleTap;
+
+    /// <summary>
+    /// WinUI разрешает только один открытый ContentDialog — второй бросает исключение и роняет приложение.
+    /// Поэтому диалоги показываются по очереди.
+    /// </summary>
+    private readonly SemaphoreSlim _dialogQueue = new(1, 1);
+
+    private async Task<ContentDialogResult> ShowQueuedAsync(ContentDialog dialog)
+    {
+        await _dialogQueue.WaitAsync();
+        try
+        {
+            return await dialog.ShowAsync();
+        }
+        finally
+        {
+            _dialogQueue.Release();
+        }
+    }
 
     private ContentDialog CreateDialog(string title) => new()
     {
