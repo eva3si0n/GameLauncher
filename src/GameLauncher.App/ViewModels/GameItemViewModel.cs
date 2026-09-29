@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GameLauncher.Core.Library;
+using GameLauncher.Core.PlayTime;
 
 namespace GameLauncher.App.ViewModels;
 
@@ -8,6 +9,7 @@ namespace GameLauncher.App.ViewModels;
 public sealed class GameItemViewModel : ObservableObject
 {
     private readonly Game _game;
+    private PlaySessionState _state;
 
     public GameItemViewModel(
         Game game,
@@ -29,6 +31,30 @@ public sealed class GameItemViewModel : ObservableObject
 
     public string ExePath => _game.ExePath;
 
+    public string PlayTimeText => PlayTimeFormat.Format(_game.TotalPlayTime);
+
+    public PlaySessionState State
+    {
+        get => _state;
+        set
+        {
+            if (SetProperty(ref _state, value))
+            {
+                OnPropertyChanged(nameof(StatusText));
+                OnPropertyChanged(nameof(HasStatus));
+            }
+        }
+    }
+
+    public string StatusText => _state switch
+    {
+        PlaySessionState.Starting => "Запуск…",
+        PlaySessionState.Playing => "Идёт игра",
+        _ => string.Empty,
+    };
+
+    public bool HasStatus => _state != PlaySessionState.None;
+
     public IAsyncRelayCommand PlayCommand { get; }
 
     public IAsyncRelayCommand RenameCommand { get; }
@@ -36,5 +62,9 @@ public sealed class GameItemViewModel : ObservableObject
     public IAsyncRelayCommand DeleteCommand { get; }
 
     /// <summary>Сообщить UI, что данные игры изменились (например, после переименования).</summary>
-    public void Refresh() => OnPropertyChanged(nameof(Name));
+    public void Refresh()
+    {
+        OnPropertyChanged(nameof(Name));
+        OnPropertyChanged(nameof(PlayTimeText));
+    }
 }

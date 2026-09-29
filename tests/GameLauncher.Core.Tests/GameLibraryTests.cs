@@ -122,6 +122,30 @@ public sealed class GameLibraryTests : IDisposable
     }
 
     [Fact]
+    public void AddPlayTime_AccumulatesAndPersists()
+    {
+        var library = new GameLibrary(NewStore());
+        var game = library.Add(_dir.CreateFile("game.exe"), out _);
+        var playedAt = new DateTimeOffset(2026, 9, 29, 20, 0, 0, TimeSpan.Zero);
+
+        library.AddPlayTime(game.Id, TimeSpan.FromMinutes(30), playedAt);
+        library.AddPlayTime(game.Id, TimeSpan.FromMinutes(15), playedAt.AddHours(1));
+
+        var reloaded = Assert.Single(new GameLibrary(NewStore()).Games);
+        Assert.Equal(TimeSpan.FromMinutes(45), reloaded.TotalPlayTime);
+        Assert.Equal(playedAt.AddHours(1), reloaded.LastPlayedAt);
+    }
+
+    [Fact]
+    public void AddPlayTime_Negative_Throws()
+    {
+        var library = new GameLibrary(NewStore());
+        var game = library.Add(_dir.CreateFile("game.exe"), out _);
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => library.AddPlayTime(game.Id, TimeSpan.FromSeconds(-1), default));
+    }
+
+    [Fact]
     public void FailedSave_RollsBackEveryMutation()
     {
         var store = new FlakyStore();
@@ -132,9 +156,12 @@ public sealed class GameLibraryTests : IDisposable
         Assert.Throws<IOException>(() => library.Add(_dir.CreateFile("b.exe"), out _));
         Assert.Throws<IOException>(() => library.Rename(game.Id, "Другое"));
         Assert.Throws<IOException>(() => library.Remove(game.Id));
+        Assert.Throws<IOException>(() => library.AddPlayTime(game.Id, TimeSpan.FromMinutes(5), default));
 
         Assert.Same(game, Assert.Single(library.Games));
         Assert.Equal("a", game.Name);
+        Assert.Equal(TimeSpan.Zero, game.TotalPlayTime);
+        Assert.Null(game.LastPlayedAt);
     }
 
     private sealed class FlakyStore : ILibraryStore

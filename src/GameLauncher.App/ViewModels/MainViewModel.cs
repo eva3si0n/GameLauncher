@@ -16,12 +16,15 @@ public sealed class MainViewModel : ObservableObject
     private readonly GameLibrary _library;
     private readonly IDialogService _dialogs;
     private readonly string? _corruptBackupPath;
+    private readonly PlayTimeMonitor _playTime;
 
-    public MainViewModel(GameLibrary library, IDialogService dialogs, string? corruptBackupPath)
+    public MainViewModel(GameLibrary library, IDialogService dialogs, PlayTimeMonitor playTime, string? corruptBackupPath)
     {
         _library = library;
         _dialogs = dialogs;
+        _playTime = playTime;
         _corruptBackupPath = corruptBackupPath;
+        _playTime.Changed += (_, _) => RefreshPlayTime();
 
         Games = new ObservableCollection<GameItemViewModel>(library.Games.Select(CreateItem));
         Games.CollectionChanged += (_, _) => OnPropertyChanged(nameof(IsEmpty));
@@ -42,6 +45,15 @@ public sealed class MainViewModel : ObservableObject
             await _dialogs.ShowMessageAsync(
                 "Файл библиотеки повреждён",
                 $"Не удалось прочитать библиотеку, начата новая. Старый файл сохранён здесь:\n{_corruptBackupPath}");
+        }
+    }
+
+    private void RefreshPlayTime()
+    {
+        foreach (var item in Games)
+        {
+            item.State = _playTime.GetState(item.Id);
+            item.Refresh();
         }
     }
 
@@ -81,6 +93,7 @@ public sealed class MainViewModel : ObservableObject
         try
         {
             Process.Start(GameLaunch.CreateStartInfo(item.Game))?.Dispose();
+            _playTime.OnLaunched(item.Game);
         }
         catch (FileNotFoundException)
         {
