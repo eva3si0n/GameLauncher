@@ -11,10 +11,11 @@ namespace GameLauncher.Core.PlayTime;
 /// <item>Сессия заканчивается, если процессов нет дольше <see cref="EndGrace"/> — чтобы пережить паузу
 /// между завершением стартера и появлением игры.</item>
 /// <item>Накопленное время сохраняется раз в <see cref="FlushInterval"/>, чтобы падение лаунчера не съело сессию.</item>
+/// <item>Вместе со временем в <paramref name="history"/> записывается сама сессия (начало и конец).</item>
 /// </list>
 /// Не потокобезопасен: вызывать из одного потока.
 /// </summary>
-public sealed class PlaySessionTracker(GameLibrary library)
+public sealed class PlaySessionTracker(GameLibrary library, PlayHistory? history = null)
 {
     public static readonly TimeSpan StartTimeout = TimeSpan.FromMinutes(2);
     public static readonly TimeSpan EndGrace = TimeSpan.FromSeconds(10);
@@ -115,6 +116,7 @@ public sealed class PlaySessionTracker(GameLibrary library)
         {
             library.AddPlayTime(session.GameId, delta, lastSeen);
             session.CountedUntil = lastSeen;
+            RecordHistory(session, lastSeen);
             return true;
         }
         catch (KeyNotFoundException)
@@ -130,9 +132,29 @@ public sealed class PlaySessionTracker(GameLibrary library)
         }
     }
 
+    private void RecordHistory(Session session, DateTimeOffset end)
+    {
+        if (history is null || session.FirstSeen is not { } start)
+        {
+            return;
+        }
+
+        try
+        {
+            history.Record(new PlaySession(session.HistoryId, session.GameId, start, end));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // История — дополнение: общее время уже сохранено. Сессия допишется при следующем сохранении.
+        }
+    }
+
     private sealed class Session(Guid gameId, GameFolderMatcher matcher, DateTimeOffset launchedAt)
     {
         public Guid GameId { get; } = gameId;
+
+        /// <summary>Id записи в истории: одна и та же запись обновляется при каждом сохранении.</summary>
+        public Guid HistoryId { get; } = Guid.NewGuid();
 
         public GameFolderMatcher Matcher { get; } = matcher;
 

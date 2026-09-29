@@ -42,16 +42,18 @@ public partial class App : Application, IAppLifecycle
 
         var store = new JsonLibraryStore(AppPaths.LibraryFilePath);
         GameLibrary library;
+        PlayHistory history;
         try
         {
             library = new GameLibrary(store);
+            history = new PlayHistory(AppPaths.SessionsFilePath);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             // Файл занят или недоступен. Окна ещё нет — показываем системное сообщение и выходим, ничего не перезаписав.
             MessageBox(
                 IntPtr.Zero,
-                $"Не удалось открыть библиотеку игр:\n{AppPaths.LibraryFilePath}\n\n{ex.Message}\n\n"
+                $"Не удалось открыть данные лаунчера:\n{AppPaths.DataDirectory}\n\n{ex.Message}\n\n"
                 + "Возможно, файл занят другой программой (например, антивирусом). Попробуйте запустить лаунчер ещё раз.",
                 "GameLauncher",
                 0x10); // MB_ICONERROR
@@ -60,7 +62,7 @@ public partial class App : Application, IAppLifecycle
         }
 
         var playTime = _playTime = new PlayTimeMonitor(
-            new PlaySessionTracker(library),
+            new PlaySessionTracker(library, history),
             new WindowsRunningProcesses(),
             _dispatcher);
 
@@ -99,8 +101,9 @@ public partial class App : Application, IAppLifecycle
                 steamGridDb,
                 new CoverService(library, artwork, steamGridDb, details),
                 details,
-                new GameRemover(library, artwork, detailsStore),
+                new GameRemover(library, artwork, detailsStore, history),
                 settings,
+                history,
                 store.CorruptBackupPath);
         });
 

@@ -13,7 +13,7 @@ public sealed class BackupException(string message, Exception? innerException = 
 
 /// <summary>
 /// Резервные копии данных лаунчера — zip с файлами:
-/// <c>backup.json</c> (описание копии), <c>library.json</c>, <c>settings.json</c>, <c>info\*</c>, <c>artwork\*</c>.
+/// <c>backup.json</c> (описание копии), <c>library.json</c>, <c>settings.json</c>, <c>sessions.json</c>, <c>info\*</c>, <c>artwork\*</c>.
 /// Ключ SteamGridDB не копируется: он зашифрован DPAPI для текущего пользователя Windows и в другом месте бесполезен.
 /// <para>
 /// Файлы данных читаются с FileShare.ReadWrite | Delete: запись библиотеки (временный файл + замена) не упадёт,
@@ -33,6 +33,10 @@ public sealed class BackupService(string dataDirectory, TimeProvider? time = nul
 
     private const string LibraryName = "library.json";
     private const string SettingsName = "settings.json";
+    private const string SessionsName = "sessions.json";
+
+    // Необязательные файлы верхнего уровня: если их нет в копии, при восстановлении остаются текущие.
+    private static readonly string[] OptionalFiles = [SettingsName, SessionsName];
     private const string StagingName = ".restore";
     private static readonly string[] Folders = ["info", "artwork"];
 
@@ -66,7 +70,10 @@ public sealed class BackupService(string dataDirectory, TimeProvider? time = nul
 
         var library = ReadShared(Path.Combine(dataDirectory, LibraryName))
             ?? throw new BackupException("Библиотека ещё пуста — копировать нечего.");
-        var settings = ReadShared(Path.Combine(dataDirectory, SettingsName));
+        var optional = OptionalFiles
+            .Select(name => (Name: name, Bytes: ReadShared(Path.Combine(dataDirectory, name))))
+            .Where(f => f.Bytes is not null)
+            .ToList();
         var info = new BackupInfo(_time.GetLocalNow(), ParseLibrary(library, "Библиотека").Games.Count, includeFolders);
 
         try
@@ -77,9 +84,9 @@ public sealed class BackupService(string dataDirectory, TimeProvider? time = nul
                 AddEntry(zip, ManifestName, JsonSerializer.SerializeToUtf8Bytes(
                     new Manifest(FormatVersion, info.CreatedAt, info.GameCount, info.IncludesArtwork), JsonOptions));
                 AddEntry(zip, LibraryName, library);
-                if (settings is not null)
+                foreach (var (name, bytes) in optional)
                 {
-                    AddEntry(zip, SettingsName, settings);
+                    AddEntry(zip, name, bytes!);
                 }
 
                 if (includeFolders)
@@ -179,9 +186,12 @@ public sealed class BackupService(string dataDirectory, TimeProvider? time = nul
             }
 
             File.Move(Path.Combine(staging, LibraryName), Path.Combine(dataDirectory, LibraryName), overwrite: true);
-            if (File.Exists(Path.Combine(staging, SettingsName)))
+            foreach (var name in OptionalFiles)
             {
-                File.Move(Path.Combine(staging, SettingsName), Path.Combine(dataDirectory, SettingsName), overwrite: true);
+                if (File.Exists(Path.Combine(staging, name)))
+                {
+                    File.Move(Path.Combine(staging, name), Path.Combine(dataDirectory, name), overwrite: true);
+                }
             }
 
             foreach (var folder in Folders)
@@ -208,7 +218,7 @@ public sealed class BackupService(string dataDirectory, TimeProvider? time = nul
     }
 
     /// <summary>
-    /// Ежедневная автокопия библиотеки и настроек (без обложек): одна за день, хранятся последние
+    /// Ежедневная автокопия библиотеки, настроек и истории сессий (без обложек): одна за день, хранятся последние
     /// <see cref="AutoBackupsToKeep"/>. Возвращает путь созданной копии или null, если сегодняшняя уже есть.
     /// </summary>
     public string? EnsureDailyBackup()
@@ -240,7 +250,7 @@ public sealed class BackupService(string dataDirectory, TimeProvider? time = nul
     private static string? MapEntry(string fullName)
     {
         var name = fullName.Replace('\\', '/');
-        if (name is LibraryName or SettingsName)
+        if (name == LibraryName || OptionalFiles.Contains(name))
         {
             return name;
         }

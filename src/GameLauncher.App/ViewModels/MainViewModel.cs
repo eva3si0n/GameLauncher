@@ -7,6 +7,7 @@ using GameLauncher.App.Services;
 using GameLauncher.Core.Artwork;
 using GameLauncher.Core.GameInfo;
 using GameLauncher.Core.Library;
+using GameLauncher.Core.PlayTime;
 
 namespace GameLauncher.App.ViewModels;
 
@@ -27,8 +28,10 @@ public sealed class MainViewModel : ObservableObject
     private readonly CoverService _covers;
     private readonly DetailsService _details;
     private readonly GameRemover _remover;
+    private readonly PlayHistory _history;
     private readonly string? _corruptBackupPath;
     private GameItemViewModel? _selectedGame;
+    private GameStatsViewModel? _selectedStats;
     private bool _isSettingsOpen;
     private string _searchText = "";
 
@@ -42,6 +45,7 @@ public sealed class MainViewModel : ObservableObject
         DetailsService details,
         GameRemover remover,
         SettingsViewModel settings,
+        PlayHistory history,
         string? corruptBackupPath)
     {
         _library = library;
@@ -52,8 +56,11 @@ public sealed class MainViewModel : ObservableObject
         _covers = covers;
         _details = details;
         _remover = remover;
+        _history = history;
         _corruptBackupPath = corruptBackupPath;
         Settings = settings;
+        // Идёт игра — запись истории обновляется раз в минуту; открытая страница игры видит это сразу.
+        _history.Changed += (_, _) => RefreshSelectedStats();
         _playTime.Changed += (_, _) => RefreshPlayTime();
 
         Games = new ObservableCollection<GameItemViewModel>(library.Games.Select(CreateItem));
@@ -112,6 +119,13 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
+    /// <summary>Статистика игры, открытой на странице; null — страница закрыта.</summary>
+    public GameStatsViewModel? SelectedStats
+    {
+        get => _selectedStats;
+        private set => SetProperty(ref _selectedStats, value);
+    }
+
     public IRelayCommand OpenSettingsCommand { get; }
 
     public IRelayCommand CloseSettingsCommand { get; }
@@ -122,6 +136,7 @@ public sealed class MainViewModel : ObservableObject
     {
         item.Details = _details.Load(item.Id);
         SelectedGame = item;
+        RefreshSelectedStats();
         await item.LoadHeroAsync(_artwork);
     }
 
@@ -134,6 +149,15 @@ public sealed class MainViewModel : ObservableObject
     {
         SelectedGame?.UnloadHero();
         SelectedGame = null;
+        SelectedStats = null;
+    }
+
+    private void RefreshSelectedStats()
+    {
+        if (SelectedGame is { } game)
+        {
+            SelectedStats = new GameStatsViewModel(_history.ForGame(game.Id).ToList(), DateTimeOffset.Now, TimeZoneInfo.Local);
+        }
     }
 
     private void NotifyNavigation()
@@ -206,6 +230,13 @@ public sealed class MainViewModel : ObservableObject
             await _dialogs.ShowMessageAsync(
                 "Файл библиотеки повреждён",
                 $"Не удалось прочитать библиотеку, начата новая. Старый файл сохранён здесь:\n{_corruptBackupPath}");
+        }
+
+        if (_history.CorruptBackupPath is not null)
+        {
+            await _dialogs.ShowMessageAsync(
+                "Файл истории сессий повреждён",
+                $"Не удалось прочитать историю сессий, начата новая (общее время игр не пострадало). Старый файл сохранён здесь:\n{_history.CorruptBackupPath}");
         }
 
         // Картинки карточек грузятся при появлении карточки на экране (EnsureImagesLoaded).
