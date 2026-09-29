@@ -15,7 +15,7 @@ public sealed class SteamStoreException(string message, Exception? inner = null)
 /// appdetails — описание, жанры, скриншоты; storesearch — поиск по названию.
 /// Лимит — порядка 200 запросов за 5 минут, для лаунчера этого с запасом.
 /// </summary>
-public sealed class SteamStoreClient(HttpClient http, TimeProvider? time = null)
+public sealed class SteamStoreClient(HttpClient http, TimeProvider? time = null, Func<string?>? primaryRegion = null)
 {
     public static readonly Uri BaseUri = new("https://store.steampowered.com/api/");
 
@@ -23,13 +23,19 @@ public sealed class SteamStoreClient(HttpClient http, TimeProvider? time = null)
 
     private readonly TimeProvider _time = time ?? TimeProvider.System;
 
+    /// <summary>Запасные витрины, если в основной игры нет.</summary>
+    private static readonly string[] FallbackRegions = ["us", "ru"];
+
     /// <summary>
-    /// Витрины, из которых берём описание, по порядку. Регион влияет только на цену и доступность:
-    /// для игр, не продающихся в регионе, appdetails отвечает success=false (так, например, с cc=ru).
-    /// Основная — Турция (регион Steam-аккаунта владельца), затем США и Россия как запасные.
-    /// Язык описания задаётся отдельно (l=russian) и от региона не зависит.
+    /// Витрины, из которых берём описание, по порядку: основная (из настроек, по умолчанию Турция), затем США и Россия.
+    /// Регион влияет только на цену и доступность: для игр, не продающихся в регионе, appdetails отвечает
+    /// success=false (так, например, с cc=ru). Язык описания задаётся отдельно (l=russian) и от региона не зависит.
     /// </summary>
-    private static readonly string[] StoreRegions = ["tr", "us", "ru"];
+    private IEnumerable<string> StoreRegions =>
+        new[] { PrimaryRegion }.Concat(FallbackRegions).Distinct(StringComparer.OrdinalIgnoreCase);
+
+    private string PrimaryRegion =>
+        primaryRegion?.Invoke() is { Length: > 0 } region ? region.ToLowerInvariant() : Settings.AppSettings.DefaultSteamRegion;
 
     /// <summary>Описание игры на русском. Null — Steam не отдаёт данных по этому AppID ни в одном регионе.</summary>
     public async Task<GameDetails?> GetDetailsAsync(int appId, CancellationToken cancellationToken = default)
@@ -48,7 +54,7 @@ public sealed class SteamStoreClient(HttpClient http, TimeProvider? time = null)
     private async Task<GameDetails?> GetDetailsAsync(int appId, string region, CancellationToken cancellationToken)
     {
         var response = await GetAsync<Dictionary<string, AppDetailsEnvelope>>(
-            $"appdetails?appids={appId}&l=russian&cc={region}", cancellationToken);
+            $"appdetails?appids={appId}&l=russian&cc={Uri.EscapeDataString(region)}", cancellationToken);
         if (response is null
             || !response.TryGetValue(appId.ToString(System.Globalization.CultureInfo.InvariantCulture), out var envelope)
             || !envelope.Success
@@ -81,7 +87,7 @@ public sealed class SteamStoreClient(HttpClient http, TimeProvider? time = null)
         ArgumentException.ThrowIfNullOrWhiteSpace(term);
 
         var response = await GetAsync<SearchResponse>(
-            $"storesearch/?term={Uri.EscapeDataString(term.Trim())}&l=russian&cc={StoreRegions[0]}", cancellationToken);
+            $"storesearch/?term={Uri.EscapeDataString(term.Trim())}&l=russian&cc={Uri.EscapeDataString(PrimaryRegion)}", cancellationToken);
         return response?.Items?
             .Where(i => i.Type is null or "app")
             .Select(i => new SteamStoreApp(i.Id, i.Name ?? ""))

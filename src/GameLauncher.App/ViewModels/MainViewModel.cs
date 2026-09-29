@@ -4,9 +4,11 @@ using System.Diagnostics;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GameLauncher.App.Services;
+using GameLauncher.Core;
 using GameLauncher.Core.Artwork;
 using GameLauncher.Core.GameInfo;
 using GameLauncher.Core.Library;
+using GameLauncher.Core.Settings;
 
 namespace GameLauncher.App.ViewModels;
 
@@ -25,8 +27,12 @@ public sealed class MainViewModel : ObservableObject
     private readonly SteamGridDbClient _steamGridDb;
     private readonly SteamStoreClient _steamStore;
     private readonly GameDetailsStore _detailsStore;
+    private readonly SettingsStore _settingsStore;
+    private readonly AppSettings _settings;
     private string? _apiKey;
     private GameItemViewModel? _selectedGame;
+    private bool _isSettingsOpen;
+    private string _searchText = "";
 
     public MainViewModel(
         GameLibrary library,
@@ -35,6 +41,7 @@ public sealed class MainViewModel : ObservableObject
         ArtworkCache artwork,
         ISecretStore keyStore,
         GameDetailsStore detailsStore,
+        SettingsStore settingsStore,
         HttpClient http,
         string? corruptBackupPath)
     {
@@ -47,19 +54,186 @@ public sealed class MainViewModel : ObservableObject
         _corruptBackupPath = corruptBackupPath;
         _apiKey = keyStore.Load();
         _steamGridDb = new SteamGridDbClient(http, () => _apiKey);
-        _steamStore = new SteamStoreClient(http);
+        _settingsStore = settingsStore;
+        _settings = settingsStore.Load();
+        _steamStore = new SteamStoreClient(http, primaryRegion: () => _settings.SteamRegion);
         _detailsStore = detailsStore;
         _playTime.Changed += (_, _) => RefreshPlayTime();
 
         Games = new ObservableCollection<GameItemViewModel>(library.Games.Select(CreateItem));
+        VisibleGames = new ObservableCollection<GameItemViewModel>(Games);
         Games.CollectionChanged += (_, _) =>
         {
+            RebuildVisibleGames();
             OnPropertyChanged(nameof(IsEmpty));
-            OnPropertyChanged(nameof(IsEmptyLibraryVisible));
         };
         AddGameCommand = new AsyncRelayCommand(AddGameAsync);
         EditApiKeyCommand = new AsyncRelayCommand(EditApiKeyAsync);
         CloseDetailsCommand = new RelayCommand(CloseDetails);
+        OpenSettingsCommand = new RelayCommand(() => IsSettingsOpen = true);
+        CloseSettingsCommand = new RelayCommand(() => IsSettingsOpen = false);
+        OpenDataFolderCommand = new RelayCommand(OpenDataFolder);
+    }
+
+    /// <summary>Тема изменилась в настройках — окно применяет её.</summary>
+    public event EventHandler? ThemeChanged;
+
+    // ---------- Навигация: библиотека / страница игры / настройки ----------
+
+    public bool IsLibraryVisible => _selectedGame is null && !_isSettingsOpen;
+
+    public bool IsDetailsOpen => _selectedGame is not null && !_isSettingsOpen;
+
+    public bool IsSettingsOpen
+    {
+        get => _isSettingsOpen;
+        set
+        {
+            if (SetProperty(ref _isSettingsOpen, value))
+            {
+                NotifyNavigation();
+            }
+        }
+    }
+
+    public IRelayCommand OpenSettingsCommand { get; }
+
+    public IRelayCommand CloseSettingsCommand { get; }
+
+    private void NotifyNavigation()
+    {
+        OnPropertyChanged(nameof(IsLibraryVisible));
+        OnPropertyChanged(nameof(IsDetailsOpen));
+        OnPropertyChanged(nameof(IsEmptyLibraryVisible));
+        OnPropertyChanged(nameof(IsNoSearchResultsVisible));
+    }
+
+    // ---------- Поиск ----------
+
+    /// <summary>Игры, подходящие под поиск, в порядке библиотеки.</summary>
+    public ObservableCollection<GameItemViewModel> VisibleGames { get; }
+
+    public string SearchText
+    {
+        get => _searchText;
+        set
+        {
+            if (SetProperty(ref _searchText, value ?? ""))
+            {
+                RebuildVisibleGames();
+            }
+        }
+    }
+
+    public bool IsNoSearchResultsVisible => IsLibraryVisible && Games.Count > 0 && VisibleGames.Count == 0;
+
+    private void RebuildVisibleGames()
+    {
+        var matching = Games.Where(g => LibrarySearch.Matches(g.Name, _searchText)).ToList();
+        if (!matching.SequenceEqual(VisibleGames))
+        {
+            VisibleGames.Clear();
+            foreach (var game in matching)
+            {
+                VisibleGames.Add(game);
+            }
+        }
+
+        OnPropertyChanged(nameof(IsEmptyLibraryVisible));
+        OnPropertyChanged(nameof(IsNoSearchResultsVisible));
+    }
+
+    // ---------- Настройки ----------
+
+    public AppTheme Theme => _settings.Theme;
+
+    /// <summary>Индекс в списке «Как в системе / Светлая / Тёмная».</summary>
+    public int ThemeIndex
+    {
+        get => (int)_settings.Theme;
+        set
+        {
+            if (value < 0 || value == (int)_settings.Theme || !Enum.IsDefined((AppTheme)value))
+            {
+                return;
+            }
+
+            _settings.Theme = (AppTheme)value;
+            SaveSettings();
+            OnPropertyChanged();
+            ThemeChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    /// <summary>Витрины Steam для описаний: код страны и название.</summary>
+    public static IReadOnlyList<(string Code, string Name)> SteamRegions { get; } =
+    [
+        ("tr", "Турция"),
+        ("us", "США"),
+        ("ru", "Россия"),
+        ("kz", "Казахстан"),
+        ("ua", "Украина"),
+        ("de", "Германия"),
+    ];
+
+    public IReadOnlyList<string> SteamRegionNames { get; } = SteamRegions.Select(r => r.Name).ToList();
+
+    public int SteamRegionIndex
+    {
+        get => Math.Max(0, SteamRegions.ToList().FindIndex(r => string.Equals(r.Code, _settings.SteamRegion, StringComparison.OrdinalIgnoreCase)));
+        set
+        {
+            if (value < 0 || value >= SteamRegions.Count || SteamRegions[value].Code == _settings.SteamRegion)
+            {
+                return;
+            }
+
+            _settings.SteamRegion = SteamRegions[value].Code;
+            SaveSettings();
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>Размер и положение окна с прошлого запуска; null — первый запуск.</summary>
+    public WindowPlacement? SavedWindowPlacement => _settings.Window;
+
+    public void SaveWindowPlacement(WindowPlacement placement)
+    {
+        _settings.Window = placement;
+        SaveSettings();
+    }
+
+    public string ApiKeyStatusText => _apiKey is null ? "Ключ не задан — поиск обложек недоступен." : "Ключ сохранён (зашифрован DPAPI).";
+
+    public string DataDirectory => AppPaths.DataDirectory;
+
+    public string AppVersion =>
+        typeof(MainViewModel).Assembly.GetName().Version?.ToString(3) ?? "—";
+
+    public IRelayCommand OpenDataFolderCommand { get; }
+
+    private void SaveSettings()
+    {
+        try
+        {
+            _settingsStore.Save(_settings);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Настройка применится до перезапуска; сообщать о каждом сбое записи незачем.
+        }
+    }
+
+    private void OpenDataFolder()
+    {
+        try
+        {
+            System.IO.Directory.CreateDirectory(AppPaths.DataDirectory);
+            Process.Start("explorer.exe", $"\"{AppPaths.DataDirectory}\"")?.Dispose();
+        }
+        catch (Exception ex) when (ex is Win32Exception or IOException or UnauthorizedAccessException)
+        {
+        }
     }
 
     /// <summary>Игра, открытая на отдельной странице; null — показана библиотека.</summary>
@@ -70,16 +244,10 @@ public sealed class MainViewModel : ObservableObject
         {
             if (SetProperty(ref _selectedGame, value))
             {
-                OnPropertyChanged(nameof(IsDetailsOpen));
-                OnPropertyChanged(nameof(IsLibraryVisible));
-                OnPropertyChanged(nameof(IsEmptyLibraryVisible));
+                NotifyNavigation();
             }
         }
     }
-
-    public bool IsDetailsOpen => _selectedGame is not null;
-
-    public bool IsLibraryVisible => _selectedGame is null;
 
     public IRelayCommand CloseDetailsCommand { get; }
 
@@ -108,7 +276,7 @@ public sealed class MainViewModel : ObservableObject
     public bool IsEmpty => Games.Count == 0;
 
     /// <summary>Подсказка «Библиотека пуста» — только на экране библиотеки.</summary>
-    public bool IsEmptyLibraryVisible => IsEmpty && _selectedGame is null;
+    public bool IsEmptyLibraryVisible => IsEmpty && IsLibraryVisible;
 
     public IAsyncRelayCommand AddGameCommand { get; }
 
@@ -238,6 +406,8 @@ public sealed class MainViewModel : ObservableObject
         {
             await _dialogs.ShowMessageAsync("Не удалось сохранить ключ", ex.Message);
         }
+
+        OnPropertyChanged(nameof(ApiKeyStatusText));
 
         return _apiKey is not null;
     }

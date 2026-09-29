@@ -6,7 +6,25 @@
     xmlns:vm="using:GameLauncher.App.ViewModels"
     Title="GameLauncher">
 
-    <Grid x:Name="Root" Padding="24,16,24,0">
+    <Window.SystemBackdrop>
+        <MicaBackdrop />
+    </Window.SystemBackdrop>
+
+    <Grid x:Name="Root">
+    <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="*" />
+    </Grid.RowDefinitions>
+
+    <!-- Своя строка заголовка: контент продлён под неё, кнопки окна рисует система -->
+    <Grid x:Name="AppTitleBar" Height="48">
+        <StackPanel Margin="16,0,0,0" VerticalAlignment="Center" Orientation="Horizontal" Spacing="12">
+            <FontIcon FontSize="16" Glyph="&#xE7FC;" />
+            <TextBlock VerticalAlignment="Center" Style="{StaticResource CaptionTextBlockStyle}" Text="GameLauncher" />
+        </StackPanel>
+    </Grid>
+
+    <Grid x:Name="ContentRoot" Grid.Row="1" Padding="24,8,24,0">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
@@ -22,11 +40,18 @@
                 Style="{StaticResource TitleTextBlockStyle}"
                 Text="Библиотека" />
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-            <Button Command="{x:Bind ViewModel.EditApiKeyCommand}" ToolTipService.ToolTip="API-ключ SteamGridDB для обложек">
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <FontIcon FontSize="14" Glyph="&#xE192;" />
-                    <TextBlock Text="SteamGridDB" />
-                </StackPanel>
+            <AutoSuggestBox
+                x:Name="SearchBox"
+                Width="280"
+                PlaceholderText="Поиск (Ctrl+F)"
+                QueryIcon="Find"
+                Text="{x:Bind ViewModel.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                <AutoSuggestBox.KeyboardAccelerators>
+                    <KeyboardAccelerator Key="F" Invoked="OnSearchAccelerator" Modifiers="Control" />
+                </AutoSuggestBox.KeyboardAccelerators>
+            </AutoSuggestBox>
+            <Button Command="{x:Bind ViewModel.OpenSettingsCommand}" ToolTipService.ToolTip="Настройки">
+                <FontIcon FontSize="14" Glyph="&#xE713;" />
             </Button>
             <Button
                 Command="{x:Bind ViewModel.AddGameCommand}"
@@ -44,7 +69,7 @@
             Padding="0,0,0,24"
             IsItemClickEnabled="True"
             ItemClick="OnGameClick"
-            ItemsSource="{x:Bind ViewModel.Games}"
+            ItemsSource="{x:Bind ViewModel.VisibleGames}"
             SelectionMode="None"
             Visibility="{x:Bind ViewModel.IsLibraryVisible, Mode=OneWay}">
             <GridView.ItemTemplate>
@@ -145,10 +170,18 @@
                 Text="Нажмите «Добавить игру» и выберите .exe" />
         </StackPanel>
 
+        <TextBlock
+            Grid.Row="1"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center"
+            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+            Text="Ничего не найдено"
+            Visibility="{x:Bind ViewModel.IsNoSearchResultsVisible, Mode=OneWay}" />
+
         <!-- Страница игры: открывается кликом по карточке -->
         <ScrollViewer
             Grid.RowSpan="2"
-            Margin="-24,-16,-24,0"
+            Margin="-24,-8,-24,0"
             Visibility="{x:Bind ViewModel.IsDetailsOpen, Mode=OneWay}">
             <StackPanel Padding="0,0,0,24">
                 <Grid Height="300">
@@ -324,5 +357,69 @@
                 </StackPanel>
             </StackPanel>
         </ScrollViewer>
+
+        <!-- Настройки -->
+        <ScrollViewer
+            Grid.RowSpan="2"
+            Visibility="{x:Bind ViewModel.IsSettingsOpen, Mode=OneWay}">
+            <StackPanel MaxWidth="860" Padding="0,8,0,24" HorizontalAlignment="Stretch" Spacing="16">
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                    <Button Command="{x:Bind ViewModel.CloseSettingsCommand}" ToolTipService.ToolTip="Назад (Esc)">
+                        <Button.KeyboardAccelerators>
+                            <KeyboardAccelerator Key="Escape" />
+                        </Button.KeyboardAccelerators>
+                        <FontIcon FontSize="14" Glyph="&#xE72B;" />
+                    </Button>
+                    <TextBlock VerticalAlignment="Center" Style="{StaticResource TitleTextBlockStyle}" Text="Настройки" />
+                </StackPanel>
+
+                <StackPanel Style="{StaticResource SettingsCardStyle}">
+                    <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="Внешний вид" />
+                    <ComboBox MinWidth="240" Header="Тема" SelectedIndex="{x:Bind ViewModel.ThemeIndex, Mode=TwoWay}">
+                        <ComboBoxItem Content="Как в системе" />
+                        <ComboBoxItem Content="Светлая" />
+                        <ComboBoxItem Content="Тёмная" />
+                    </ComboBox>
+                </StackPanel>
+
+                <StackPanel Style="{StaticResource SettingsCardStyle}">
+                    <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="Обложки: SteamGridDB" />
+                    <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{x:Bind ViewModel.ApiKeyStatusText, Mode=OneWay}" TextWrapping="Wrap" />
+                    <Button Command="{x:Bind ViewModel.EditApiKeyCommand}" Content="Изменить API-ключ…" />
+                </StackPanel>
+
+                <StackPanel Style="{StaticResource SettingsCardStyle}">
+                    <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="Описания: Steam" />
+                    <ComboBox
+                        MinWidth="240"
+                        Header="Основная витрина"
+                        ItemsSource="{x:Bind ViewModel.SteamRegionNames}"
+                        SelectedIndex="{x:Bind ViewModel.SteamRegionIndex, Mode=TwoWay}" />
+                    <TextBlock
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Text="Выберите регион своего Steam-аккаунта. Если игры нет на этой витрине, описание берётся с витрин США и России. Язык описаний — русский."
+                        TextWrapping="Wrap" />
+                </StackPanel>
+
+                <StackPanel Style="{StaticResource SettingsCardStyle}">
+                    <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="Данные" />
+                    <TextBlock
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Text="Библиотека, время в играх, обложки, описания и настройки хранятся здесь:"
+                        TextWrapping="Wrap" />
+                    <TextBlock IsTextSelectionEnabled="True" Text="{x:Bind ViewModel.DataDirectory}" TextWrapping="Wrap" />
+                    <Button Command="{x:Bind ViewModel.OpenDataFolderCommand}" Content="Открыть папку данных" />
+                </StackPanel>
+
+                <StackPanel Style="{StaticResource SettingsCardStyle}">
+                    <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="О программе" />
+                    <TextBlock>
+                        <Run Text="GameLauncher" />
+                        <Run Text="{x:Bind ViewModel.AppVersion}" />
+                    </TextBlock>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
     </Grid>
 </Window>

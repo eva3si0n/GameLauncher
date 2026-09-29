@@ -303,6 +303,8 @@ public sealed class DialogService(Window window) : IDialogService
     {
         Title = title,
         XamlRoot = window.Content.XamlRoot,
+        // Диалог живёт во всплывающем слое и не наследует тему окна — задаём явно.
+        RequestedTheme = ((FrameworkElement)window.Content).ActualTheme,
         Style = (Style)Application.Current.Resources["DefaultContentDialogStyle"],
     };
 }
