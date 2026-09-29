@@ -5,6 +5,7 @@ using GameLauncher.Core.Artwork;
 using GameLauncher.Core.GameInfo;
 using GameLauncher.Core.Library;
 using GameLauncher.Core.PlayTime;
+using GameLauncher.Core.Settings;
 using Microsoft.UI.Xaml;
 
 namespace GameLauncher.App;
@@ -39,6 +40,7 @@ public partial class App : Application
                 new ArtworkCache(AppPaths.ArtworkDirectory, Http),
                 new DpapiSecretStore(AppPaths.SteamGridDbKeyPath),
                 new GameDetailsStore(AppPaths.GameDetailsDirectory),
+                new SettingsStore(AppPaths.SettingsFilePath),
                 Http,
                 store.CorruptBackupPath));
         // Ограничение первой версии: время считается, только пока лаунчер открыт.

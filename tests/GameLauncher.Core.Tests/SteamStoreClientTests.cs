@@ -63,6 +63,20 @@ public sealed class SteamStoreClientTests
     }
 
     [Fact]
+    public async Task GetDetails_UsesConfiguredPrimaryRegionWithoutDuplicates()
+    {
+        static string Region(HttpRequestMessage r) => System.Text.RegularExpressions.Regex.Match(r.RequestUri!.Query, "cc=([a-z]+)").Groups[1].Value;
+        var handler = new FakeHttpHandler(_ => FakeHttpHandler.Json("""{"5":{"success":false}}"""));
+        var client = new SteamStoreClient(new HttpClient(handler), primaryRegion: () => "US");
+
+        Assert.Null(await client.GetDetailsAsync(5, TestContext.Current.CancellationToken));
+        Assert.Equal(["us", "ru"], handler.Requests.Select(Region));
+
+        await client.SearchAsync("x", TestContext.Current.CancellationToken);
+        Assert.Equal("us", Region(handler.Requests[^1]));
+    }
+
+    [Fact]
     public async Task GetDetails_FoundInTurkey_DoesNotQueryOtherRegions()
     {
         var (client, handler) = Create(_ => FakeHttpHandler.Json("""{"5":{"success":true,"data":{"name":"Игра"}}}"""));

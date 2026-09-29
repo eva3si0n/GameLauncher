@@ -20,6 +20,9 @@ public static class AppPaths
     /// <summary>Кэш обложек и баннеров.</summary>
     public static string ArtworkDirectory => Path.Combine(DataDirectory, "artwork");
 
+    /// <summary>Настройки лаунчера.</summary>
+    public static string SettingsFilePath => Path.Combine(DataDirectory, "settings.json");
+
     /// <summary>Описания игр из Steam.</summary>
     public static string GameDetailsDirectory => Path.Combine(DataDirectory, "info");
 
