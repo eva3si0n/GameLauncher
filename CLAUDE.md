@@ -36,7 +36,7 @@
 - App собирается только в CI (`windows-latest`, `.github/workflows/ci.yml`): XAML-компилятор WinUI работает только на Windows.
 - Локально на Linux: `dotnet build src/GameLauncher.Core` и `dotnet test --project tests/GameLauncher.Core.Tests`.
 - Из облачной сессии Claude недоступны SteamGridDB и Steam Store (сетевая политика) — HTTP-клиенты тестируются на подставных ответах (`FakeHttpHandler`), реальную работу проверяет владелец на Windows 11. GUI в контейнере не запустить.
-- Артефакт CI — `GameLauncher-win-x64` (zip папки publish), хранится 7 дней — только для проверки сборки PR.
+- Артефакт CI — `GameLauncher-win-x64` (zip папки publish, ~68 МБ): выкладывается только для PR, хранится 3 дня — только для проверки сборки. Хранилище Actions ограничено: артефакты на push в `main` не выкладывать, срок не увеличивать. Удалить все артефакты — workflow `Cleanup artifacts` (ручной запуск).
 - Релиз — `.github/workflows/release.yml`: push тега `vX.Y.Z` или ручной запуск с версией `X.Y.Z` (тег создаётся сам); zip публикуется в GitHub Releases. Push тегов из облачной сессии Claude не проходит — используйте ручной запуск.
 - Версия в релизе берётся из `-p:Version` и перебивает `<Version>` в `GameLauncher.App.csproj`. После релиза поднять `<Version>` отдельным PR — иначе артефакты CI показывают в «О программе» старую версию.
 

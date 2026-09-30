@@ -137,7 +137,7 @@ dotnet publish src/GameLauncher.App -c Release -r win-x64 -o artifacts/GameLaunc
 ```
 
 `GameLauncher.App` собирается только на Windows. `GameLauncher.Core` и тесты собираются на любой ОС.
-CI (`.github/workflows/ci.yml`) на каждом PR собирает, гоняет тесты, делает publish, проверяет сведения о файле и иконку exe, запускает приложение (смоук-тесты: обычный запуск, второй экземпляр, запуск в трей с `--tray`) и выкладывает zip в артефакты (7 дней).
+CI (`.github/workflows/ci.yml`) на каждом PR собирает, гоняет тесты, делает publish, проверяет сведения о файле и иконку exe, запускает приложение (смоук-тесты: обычный запуск, второй экземпляр, запуск в трей с `--tray`) и для PR выкладывает zip в артефакты (3 дня). Все артефакты удаляет ручной workflow `Cleanup artifacts` (Actions → Cleanup artifacts → Run workflow).
 
 ## Структура
 

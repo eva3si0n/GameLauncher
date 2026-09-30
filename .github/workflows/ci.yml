@@ -155,10 +155,12 @@ jobs:
           }
 
       # upload-artifact сам упаковывает папку в zip — без zip внутри zip.
-      # Артефакт нужен только для проверки сборки PR — храним недолго.
+      # Артефакт нужен только для проверки сборки PR владельцем: на push в main не выкладываем, храним 3 дня
+      # (каждый ~68 МБ; хранилище Actions — квота). Очистка вручную — workflow «Cleanup artifacts».
       - uses: actions/upload-artifact@v7
+        if: github.event_name == 'pull_request'
         with:
           name: GameLauncher-win-x64
           path: artifacts/GameLauncher/
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 3
