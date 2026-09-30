@@ -1,0 +1,26 @@
+name: Cleanup artifacts
+
+# Ручная очистка хранилища Actions: удаляет все артефакты CI этого репозитория.
+# Релизы не затрагивает — их zip лежат в GitHub Releases, а не в артефактах.
+on:
+  workflow_dispatch:
+
+permissions:
+  actions: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          ids=$(gh api --paginate "repos/$REPO/actions/artifacts?per_page=100" --jq '.artifacts[].id')
+          count=0
+          for id in $ids; do
+            gh api -X DELETE "repos/$REPO/actions/artifacts/$id"
+            count=$((count + 1))
+          done
+          echo "Удалено артефактов: $count" | tee -a "$GITHUB_STEP_SUMMARY"
